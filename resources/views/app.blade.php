@@ -40,7 +40,9 @@
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
         @routes
-        @vite(['resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
+        {{-- @vite(['resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])  --}} {{-- replace of under line --}}
+        @vite(['resources/css/app.css', 'resources/js/app.ts'])
+
         @inertiaHead
     </head>
     <body class="font-sans antialiased">
