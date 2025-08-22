@@ -24,7 +24,7 @@ class AccountController extends Controller
      */
     public function create()
     {
-        //
+        return Inertia::render('Accounts/Create');
     }
 
     /**
@@ -32,7 +32,11 @@ class AccountController extends Controller
      */
     public function store(StoreAccountRequest $request)
     {
-        //
+        $account = Account::create($request->validated());
+
+        return redirect()
+            ->route('accounts.index')
+            ->with('success', 'Account created successfully.');
     }
 
     /**
@@ -48,7 +52,7 @@ class AccountController extends Controller
      */
     public function edit(Account $account)
     {
-        //
+        return Inertia::render('Accounts/Edit', compact('account'));
     }
 
     /**
@@ -56,7 +60,20 @@ class AccountController extends Controller
      */
     public function update(UpdateAccountRequest $request, Account $account)
     {
-        //
+        $data = $request->validated();
+
+        // If CVV/PIN are left blank on the form, do not overwrite existing values
+        foreach (['card_cvv', 'card_pin'] as $secret) {
+            if (!array_key_exists($secret, $data) || is_null($data[$secret])) {
+                unset($data[$secret]);
+            }
+        }
+
+        $account->update($data);
+
+        return redirect()
+            ->route('accounts.index')
+            ->with('success', 'Account updated successfully.');
     }
 
     /**

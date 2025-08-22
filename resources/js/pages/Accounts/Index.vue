@@ -69,6 +69,22 @@ function destroy(row: { id: number | string; name?: string }) {
             <div class="relative min-h-[100vh] flex-1 rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
                 <!-- <PlaceholderPattern /> -->
                 <div class="h-full w-full p-4">
+                    <div class="mb-4 flex items-center justify-end">
+                        <!-- or :href="route('accounts.create')" if using Ziggy named routes -->
+                        <Link
+                            :href="route('accounts.create')"
+                            as="button"
+                            class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white shadow hover:opacity-90 dark:bg-white dark:text-gray-900"
+                            :preserve-state="true"
+                            :preserve-scroll="true"
+                        >
+                            <!-- plus icon -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 5v14M5 12h14" />
+                            </svg>
+                            New Account
+                        </Link>
+                    </div>
                     <div class="overflow-x-auto rounded-xl">
                         <table class="min-w-full text-left text-sm">
                             <thead class="bg-gray-50 text-gray-700 dark:bg-gray-900/60 dark:text-gray-200">
