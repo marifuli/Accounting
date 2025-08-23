@@ -33,4 +33,12 @@ class Account extends Model
         'bank_address',
         'description',    
     ];
+
+      protected $casts = [
+        'is_active'       => 'boolean',   // 👈 important
+        'opening_balance' => 'decimal:2',
+        'current_balance' => 'decimal:2',
+        'card_valid_from' => 'date',
+        'card_expiry'     => 'date',
+    ];
 }

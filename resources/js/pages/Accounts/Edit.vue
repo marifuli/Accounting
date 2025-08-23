@@ -11,6 +11,11 @@ type Account = {
   swift_code?: string | null
   name: string
   account_name?: string | null
+
+  currency: 'USD'|'EUR'|'GBP'|'JPY'|'AUD'|'CAD'|'CHF'|'CNY'|'INR'|'BRL'|'ZAR'|'BDT'|'other'
+  opening_balance?: number | string
+  current_balance?: number | string
+
   is_active?: boolean
   type: AccountType
   card_type?: string | null
@@ -24,22 +29,26 @@ type Account = {
   bank_iban?: string | null
   bank_address?: string | null
   description?: string | null
-  // balance?: number | string // uncomment if you added this column
 }
 
 const props = defineProps<{ account: Account }>()
 
 const breadcrumbs = [
-  { title: 'Accounts', href: '/accounts' },
+  { title: 'Accounts', href: route('accounts.index') },
   { title: 'Edit' },
 ]
 
-// Full card brand list from your migration
+// Card brands (from your migration)
 const CARD_TYPES = [
   'visa','mastercard','amex','discover','unionpay','jcb','diners_club','maestro','visa_electron',
   'rupay','verve','troy','mir','elo','hipercard','bancontact','interac','dankort','bc_card',
   'mada','eftpos','cartes_bancaires','uzcard','humo','other'
-]
+] as const
+
+// Currencies (from your migration)
+const CURRENCIES = [
+  'USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','BDT','other'
+] as const
 
 // Initialize form with existing account data
 const form = useForm({
@@ -47,6 +56,10 @@ const form = useForm({
   swift_code: props.account.swift_code ?? null,
   name: props.account.name ?? '',
   account_name: props.account.account_name ?? null,
+
+  currency: props.account.currency ?? 'USD',
+  opening_balance: props.account.opening_balance ?? 0,
+  current_balance: props.account.current_balance ?? 0,
 
   is_active: props.account.is_active ?? true,
   type: props.account.type ?? 'bank',
@@ -64,8 +77,6 @@ const form = useForm({
   bank_iban: props.account.bank_iban ?? null,
   bank_address: props.account.bank_address ?? null,
   description: props.account.description ?? null,
-
-  // balance: props.account.balance ?? 0, // if you added the column
 })
 
 const isCard = computed(() => form.type === 'card')
@@ -81,6 +92,12 @@ watch(() => form.type, (t) => {
   }
 })
 
+// If current_balance is empty/zero, keep it in sync with opening_balance edits
+watch(() => form.opening_balance, (v) => {
+  const curr = Number(form.current_balance || 0)
+  if (!curr) form.current_balance = v ?? 0
+})
+
 // Keep CODE uppercase and sluggy
 function onCodeInput(e: Event) {
   const v = (e.target as HTMLInputElement).value
@@ -88,7 +105,7 @@ function onCodeInput(e: Event) {
 }
 
 function submit() {
-  form.put(`/accounts/${props.account.id}`, {
+  form.put(route('accounts.update', props.account.id), {
     preserveScroll: true,
     onSuccess: () => {
       // Clear sensitive fields after successful update
@@ -105,7 +122,7 @@ function submit() {
       <div class="mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-semibold">Edit Account</h1>
         <div class="flex gap-2">
-          <Link href="/accounts" as="button" class="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
+          <Link :href="route('accounts.index')" as="button" class="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
             Cancel
           </Link>
           <button
@@ -170,22 +187,43 @@ function submit() {
               <p v-if="form.errors.type" class="mt-1 text-xs text-red-600">{{ form.errors.type }}</p>
             </div>
 
+            <div>
+              <label class="mb-1 block text-sm font-medium">Currency <span class="text-red-500">*</span></label>
+              <select
+                v-model="form.currency"
+                class="w-full rounded-lg border px-3 py-2 border-gray-300 dark:border-gray-700"
+              >
+                <option v-for="c in CURRENCIES" :key="c" :value="c">{{ c }}</option>
+              </select>
+              <p v-if="form.errors.currency" class="mt-1 text-xs text-red-600">{{ form.errors.currency }}</p>
+            </div>
+
+            <div>
+              <label class="mb-1 block text-sm font-medium">Opening Balance</label>
+              <input
+                v-model.number="form.opening_balance"
+                type="number" step="0.01" inputmode="decimal"
+                class="w-full rounded-lg border px-3 py-2 border-gray-300 dark:border-gray-700"
+                placeholder="0.00"
+              />
+              <p v-if="form.errors.opening_balance" class="mt-1 text-xs text-red-600">{{ form.errors.opening_balance }}</p>
+            </div>
+
+            <div>
+              <label class="mb-1 block text-sm font-medium">Current Balance</label>
+              <input
+                v-model.number="form.current_balance"
+                type="number" step="0.01" inputmode="decimal"
+                class="w-full rounded-lg border px-3 py-2 border-gray-300 dark:border-gray-700"
+                placeholder="0.00"
+              />
+              <p v-if="form.errors.current_balance" class="mt-1 text-xs text-red-600">{{ form.errors.current_balance }}</p>
+            </div>
+
             <div class="flex items-center gap-2">
               <input id="is_active" v-model="form.is_active" type="checkbox" class="h-4 w-4" />
               <label for="is_active" class="text-sm font-medium">Active</label>
             </div>
-
-            <!-- Uncomment if you added 'balance' column
-            <div>
-              <label class="mb-1 block text-sm font-medium">Current Balance</label>
-              <input
-                v-model.number="form.balance"
-                type="number" step="0.01" inputmode="decimal"
-                class="w-full rounded-lg border px-3 py-2 border-gray-300 dark:border-gray-700"
-              />
-              <p v-if="form.errors.balance" class="mt-1 text-xs text-red-600">{{ form.errors.balance }}</p>
-            </div>
-            -->
           </div>
         </section>
 

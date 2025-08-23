@@ -9,7 +9,6 @@ class StoreAccountRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Allow anyone who can hit the route; gate in controller/route middleware if needed
         return true;
     }
 
@@ -22,16 +21,22 @@ class StoreAccountRequest extends FormRequest
             'mada','eftpos','cartes_bancaires','uzcard','humo','other',
         ];
 
+        // Currencies exactly as in your migration enum
+        $currencies = ['USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','BDT','other'];
+
         return [
             'code'                => ['required','string','max:255','unique:accounts,code'],
-            'swift_code'          => ['nullable','string','max:11', 'regex:/^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$/'], // 8 or 11
+            'swift_code'          => ['nullable','string','max:11','regex:/^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$/'],
             'name'                => ['required','string','max:255'],
             'account_name'        => ['nullable','string','max:255'],
+
+            'currency'            => ['required', Rule::in($currencies)],
+            'opening_balance'     => ['nullable','numeric','decimal:0,2'],
+            'current_balance'     => ['nullable','numeric','decimal:0,2'],
 
             'is_active'           => ['boolean'],
             'type'                => ['required', Rule::in(['bank','card','mobile'])],
 
-            // Required only when type=card; otherwise nullable
             'card_type'           => ['nullable', Rule::in($cardTypes)],
             'account_number'      => ['nullable','string','max:255','unique:accounts,account_number'],
             'bank_name'           => ['nullable','string','max:255'],
@@ -45,21 +50,17 @@ class StoreAccountRequest extends FormRequest
             'bank_iban'           => ['nullable','string','max:34','unique:accounts,bank_iban'],
             'bank_address'        => ['nullable','string','max:255'],
             'description'         => ['nullable','string'],
-
-            // Uncomment if you added this column:
-            'balance'          => ['nullable','numeric'],
         ];
     }
 
     public function withValidator($validator)
     {
-        // Make card fields required if type=card
-        $validator->sometimes(['card_type'], 'required', fn() => $this->input('type') === 'card');
+        // Make card fields required if type=card (at least the brand)
+        $validator->sometimes(['card_type'], 'required', fn () => $this->input('type') === 'card');
     }
 
     protected function prepareForValidation(): void
     {
-        // Normalize inputs: uppercase code; convert empty strings to null for nullable fields
         $nullable = [
             'swift_code','account_name','card_type','account_number','bank_name','bank_routing_number',
             'card_valid_from','card_expiry','card_cvv','card_pin','bank_iban','bank_address','description',
@@ -69,6 +70,9 @@ class StoreAccountRequest extends FormRequest
 
         if (isset($data['code'])) {
             $data['code'] = strtoupper(str_replace(' ', '-', $data['code']));
+        }
+        if (isset($data['currency'])) {
+            $data['currency'] = strtoupper($data['currency']);
         }
 
         foreach ($nullable as $key) {
