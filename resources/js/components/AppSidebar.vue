@@ -5,7 +5,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Building2, ChartBarStacked } from 'lucide-vue-next';
+import { BookOpen, Building2, ChartBarStacked, Folder, LayoutGrid } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -19,9 +19,14 @@ const mainNavItems: NavItem[] = [
         href: '/accounts',
         icon: Building2,
     },
-     {
+    {
         title: 'Categories',
         href: '/transaction-categories',
+        icon: ChartBarStacked,
+    },
+    {
+        title: 'Expense/Income Account',
+        href: '/expense-income-account',
         icon: ChartBarStacked,
     },
 ];
