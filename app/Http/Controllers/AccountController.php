@@ -32,7 +32,11 @@ class AccountController extends Controller
      */
     public function store(StoreAccountRequest $request)
     {
-        $account = Account::create($request->validated());
+        $formData = $request->validated();
+
+        $formData['opening_balance'] = $formData['balance'] ?? 0;
+
+        $account = Account::create($formData);
 
         return redirect()
             ->route('accounts.index')

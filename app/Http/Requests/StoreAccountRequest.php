@@ -47,7 +47,7 @@ class StoreAccountRequest extends FormRequest
             'description'         => ['nullable','string'],
 
             // Uncomment if you added this column:
-            // 'balance'          => ['nullable','numeric'],
+            'balance'          => ['nullable','numeric'],
         ];
     }
 

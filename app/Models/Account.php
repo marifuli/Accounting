@@ -17,6 +17,8 @@ class Account extends Model
         'swift_code',
         'name',
         'account_name',
+        'current_balance',
+        'opening_balance',
         'is_active',
         'type',
         'card_type',
