@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ExpenseIncomeAccountController;
 use App\Http\Controllers\TransactionCategoryController;
+use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UpcommingExpenseIncomeController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -21,6 +22,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('transaction-categories', TransactionCategoryController::class);
     Route::resource('expense-income-accounts', ExpenseIncomeAccountController::class);
     Route::resource('upcomming-expense-income', UpcommingExpenseIncomeController::class);
+    Route::resource('transactionos', TransactionController::class);
     // Route::get('/', function () {
     //     return Inertia::render('Settings/Index');
     // })->name('index');
