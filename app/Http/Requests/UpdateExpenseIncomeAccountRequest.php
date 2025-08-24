@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateExpenseIncomeAccountRequest extends FormRequest
 {
@@ -11,7 +12,7 @@ class UpdateExpenseIncomeAccountRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,7 +23,10 @@ class UpdateExpenseIncomeAccountRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'name'                     => ['required', 'string', 'max:255'],
+            'description'              => ['nullable', 'string'],
+            'type'                     => ['required', Rule::in(['income', 'expense'])],
+            'transaction_category_id'  => ['nullable', 'integer', 'exists:transaction_categories,id'],
         ];
     }
 }

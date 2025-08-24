@@ -9,4 +9,13 @@ class ExpenseIncomeAccount extends Model
 {
     /** @use HasFactory<\Database\Factories\ExpenseIncomeAccountFactory> */
     use HasFactory;
+
+    protected $table = 'expense_income_accounts';
+
+    protected $fillable = [
+        'name',
+        'description',
+        'type',
+        'transaction_category_id',
+    ];
 }
