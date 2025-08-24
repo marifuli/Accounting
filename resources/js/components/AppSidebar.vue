@@ -29,6 +29,11 @@ const mainNavItems: NavItem[] = [
         href: '/expense-income-accounts',
         icon: Banknote,
     },
+    {
+        title: 'Upcomming Exp./Inc.',
+        href: '/upcomming-expense-income',
+        icon: Banknote,
+    },
 ];
 
 const footerNavItems: NavItem[] = [
