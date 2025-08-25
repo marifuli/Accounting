@@ -12,20 +12,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('accounts', function (Blueprint $table) {
-           $table->id();
+            $table->id();
 
             $table->string('code')->unique()->index();
             $table->string('swift_code', 11)->nullable();           // Typically 8 or 11 chars
             $table->string('name');
             $table->string('account_name')->nullable();
 
-             $table->enum('currency', ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'BRL', 'ZAR', 'BDT', 'other'])->default('USD');         // ISO 4217 currency code
+            $table->enum('currency', ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'BRL', 'ZAR', 'BDT', 'other'])->default('USD');         // ISO 4217 currency code
             $table->decimal('opening_balance', 15, 2)->default(0.00);
             $table->decimal('current_balance', 15, 2)->default(0.00);
 
             $table->boolean('is_active')->default(true);
             $table->enum('type', ['bank', 'card', 'mobile'])->default('bank');
-           
+
 
             // ✅ Card brand/network enum + 'other'
             $table->enum('card_type', [

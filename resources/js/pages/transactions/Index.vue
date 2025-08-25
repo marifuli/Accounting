@@ -33,10 +33,10 @@ type Paginator<T> = {
   links: PaginationLink[]
 }
 
-// 👇 MUST match the key from your controller: Inertia::render('Transactionos/Index', ['transactions' => ...])
+// 👇 MUST match the key from your controller: Inertia::render('transactions/Index', ['transactions' => ...])
 const props = defineProps<{ transactions: Paginator<TransactionRow> }>()
 
-const breadcrumbs = [{ title: 'Transactions', href: route('transactionos.index') }]
+const breadcrumbs = [{ title: 'Transactions', href: route('transactions.index') }]
 
 function fmtMoney(v?: number | string | null) {
   if (v === null || v === undefined || v === '') return '—'
@@ -46,7 +46,7 @@ function fmtMoney(v?: number | string | null) {
 
 function destroy(row: { id: number | string; name?: string }) {
   if (!confirm(`Delete transaction${row.name ? ` “${row.name}”` : ''}?`)) return
-  router.delete(route('transactionos.destroy', row.id), {
+  router.delete(route('transactions.destroy', row.id), {
     preserveState: true,
     preserveScroll: true,
   })
@@ -76,7 +76,7 @@ function destroy(row: { id: number | string; name?: string }) {
           <!-- Toolbar -->
           <div class="mb-4 flex items-center justify-end">
             <Link
-              :href="route('transactionos.create')"
+              :href="route('transactions.create')"
               as="button"
               class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white shadow hover:opacity-90 dark:bg-white dark:text-gray-900"
               :preserve-state="true"
@@ -154,7 +154,7 @@ function destroy(row: { id: number | string; name?: string }) {
                     <div class="flex justify-end gap-2">
                       <!-- Show -->
                       <Link
-                        :href="route('transactionos.show', row.id)"
+                        :href="route('transactions.show', row.id)"
                         as="button"
                         class="rounded-lg border px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"
                         aria-label="View"
@@ -170,7 +170,7 @@ function destroy(row: { id: number | string; name?: string }) {
 
                       <!-- Edit -->
                       <Link
-                        :href="route('transactionos.edit', row.id)"
+                        :href="route('transactions.edit', row.id)"
                         as="button"
                         class="rounded-lg border px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"
                         aria-label="Edit"

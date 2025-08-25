@@ -1,25 +1,23 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 
-/**
- * EXPECTED PROPS from controller:
- * return Inertia::render('Transactions/Create', [
- *   'accounts'   => Account::select('id','name')->orderBy('name')->get(),
- *   'categories' => TransactionCategory::select('id','name')->orderBy('name')->get(),
- * ]);
- */
 type Option = { id: number | string; name: string };
 
 const props = defineProps<{
-    accounts: Option[];
     categories: Option[];
+    accounts: Option[]; // asset accounts
+    exp_inc_accounts: Option[]; // expense/income accounts
 }>();
 
-const breadcrumbs = [{ title: 'Transactions', href: route('transactionos.index') }, { title: 'Create' }];
+const breadcrumbs = [{ title: 'Transactions', href: route('transactions.index') }, { title: 'Create' }];
 
-/** ---- Form model (matches your migration/columns) ---- */
+// — Transaction Type controls which lists appear in the dropdowns —
+type TxKind = 'income' | 'expense' | 'asset';
+const txKind = ref<TxKind>('expense');
+
+// — Form model (matches your migration/columns) —
 const form = useForm({
     name: '',
     category_id: null as number | string | null,
@@ -33,12 +31,34 @@ const form = useForm({
     receive_total_amount: 0 as number,
 
     description: '' as string | null,
-    attachments: [] as File[], // multiple files
+    attachments: [] as File[],
+
+    transaction_kind: txKind.value as TxKind, // optional (for server awareness)
 });
 
-/** ---- Dynamic fees (NOT saved to DB; used to compute totals) ---- */
-type FeeRow = { name: string; amount: number | string };
+// Reset account selections whenever type changes
+watch(txKind, () => {
+    form.from_account_id = null;
+    form.to_account_id = null;
+    form.transaction_kind = txKind.value;
+});
 
+// Source / Destination lists by kind
+const sourceOptions = computed<Option[]>(() => {
+    if (txKind.value === 'income') return props.exp_inc_accounts; // E/I ➜ Asset
+    return props.accounts; // Expense/Asset: Asset source
+});
+const destOptions = computed<Option[]>(() => {
+    if (txKind.value === 'expense') return props.exp_inc_accounts; // Asset ➜ E/I
+    return props.accounts; // Income/Asset: Asset destination
+});
+
+// Helpful labels
+const sourceHint = computed(() => (txKind.value === 'income' ? 'Expense/Income' : 'Asset'));
+const destHint = computed(() => (txKind.value === 'expense' ? 'Expense/Income' : 'Asset'));
+
+// — Fees (dynamic) — also posted so you can save later —
+type FeeRow = { name: string; amount: number | string };
 const sourceFees = reactive<FeeRow[]>([{ name: '', amount: '' }]);
 const destFees = reactive<FeeRow[]>([{ name: '', amount: '' }]);
 
@@ -61,10 +81,9 @@ const n = (v: unknown) => {
     return isFinite(num) ? num : 0;
 };
 
-const sourceFeesTotal = computed(() => sourceFees.reduce((sum, f) => sum + n(f.amount), 0));
-const destFeesTotal = computed(() => destFees.reduce((sum, f) => sum + n(f.amount), 0));
+const sourceFeesTotal = computed(() => sourceFees.reduce((s, f) => s + n(f.amount), 0));
+const destFeesTotal = computed(() => destFees.reduce((s, f) => s + n(f.amount), 0));
 
-/** Auto-compute totals from actual + fees */
 watch(
     [() => form.send_actual_amount, sourceFeesTotal],
     () => {
@@ -81,7 +100,7 @@ watch(
     { immediate: true },
 );
 
-/** Attachments input -> form.attachments */
+// Attachments
 function onFilesChanged(e: Event) {
     const input = e.target as HTMLInputElement;
     if (!input.files) return;
@@ -91,59 +110,52 @@ function removeFile(i: number) {
     form.attachments.splice(i, 1);
 }
 
-/** Submit -> POST as multipart/form-data */
+// Submit multipart/form-data (includes fees arrays)
 function submit() {
     form.transform((data) => {
         const fd = new FormData();
 
-        // base fields
         fd.append('name', data.name ?? '');
         fd.append('category_id', data.category_id ? String(data.category_id) : '');
 
         fd.append('from_account_id', data.from_account_id ? String(data.from_account_id) : '');
-        fd.append('send_actual_amount', String(Number(data.send_actual_amount || 0)));
-        fd.append('send_total_amount', String(Number(data.send_total_amount || 0)));
+        fd.append('send_actual_amount', String(n(data.send_actual_amount)));
+        fd.append('send_total_amount', String(n(data.send_total_amount)));
 
         fd.append('to_account_id', data.to_account_id ? String(data.to_account_id) : '');
-        fd.append('receive_actual_amount', String(Number(data.receive_actual_amount || 0)));
-        fd.append('receive_total_amount', String(Number(data.receive_total_amount || 0)));
+        fd.append('receive_actual_amount', String(n(data.receive_actual_amount)));
+        fd.append('receive_total_amount', String(n(data.receive_total_amount)));
 
         fd.append('description', data.description ?? '');
+        fd.append('transaction_kind', txKind.value);
 
-        // files
         for (const f of data.attachments as File[]) {
             fd.append('attachments[]', f);
         }
 
-        // >>> FEES (Sender) <<<
-        // Sends as: source_fees[0][name], source_fees[0][amount], ...
+        // fees payloads (so you can store later)
         sourceFees.forEach((f, i) => {
-            const hasAny = (f.name ?? '').trim() !== '' || Number(f.amount) > 0;
+            const hasAny = (f.name ?? '').trim() !== '' || n(f.amount) > 0;
             if (!hasAny) return;
             fd.append(`source_fees[${i}][name]`, f.name ?? '');
-            fd.append(`source_fees[${i}][amount]`, String(Number(f.amount) || 0));
+            fd.append(`source_fees[${i}][amount]`, String(n(f.amount)));
         });
-
-        // >>> FEES (Receiver) <<<
         destFees.forEach((f, i) => {
-            const hasAny = (f.name ?? '').trim() !== '' || Number(f.amount) > 0;
+            const hasAny = (f.name ?? '').trim() !== '' || n(f.amount) > 0;
             if (!hasAny) return;
             fd.append(`dest_fees[${i}][name]`, f.name ?? '');
-            fd.append(`dest_fees[${i}][amount]`, String(Number(f.amount) || 0));
+            fd.append(`dest_fees[${i}][amount]`, String(n(f.amount)));
         });
 
         return fd;
-    }).post(route('transactionos.store'), {
+    }).post(route('transactions.store'), {
         preserveScroll: true,
         onFinish: () => form.reset('attachments'),
     });
 }
 
-/** ---- Right-side: tiny calculator ---- */
-const calc = reactive({
-    display: '' as string,
-    result: '' as string,
-});
+// — Tiny calculator (right side) —
+const calc = reactive({ display: '' as string, result: '' as string });
 function append(val: string) {
     calc.display += val;
 }
@@ -156,7 +168,6 @@ function backspace() {
 }
 function evaluate() {
     try {
-        // very simple evaluator for basic arithmetic
         // eslint-disable-next-line no-new-func
         const out = Function(`"use strict"; return (${calc.display});`)();
         calc.result = String(out);
@@ -178,7 +189,7 @@ function evaluate() {
                         <h1 class="text-xl font-semibold">New Transaction</h1>
                         <div class="flex gap-2">
                             <Link
-                                :href="route('transactionos.index')"
+                                :href="route('transactions.index')"
                                 as="button"
                                 class="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
                             >
@@ -196,7 +207,17 @@ function evaluate() {
                     </div>
 
                     <form @submit.prevent="submit" class="grid gap-6">
-                        <!-- Top: Name + Category -->
+                        <!-- Transaction Type -->
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Transaction Type <span class="text-red-500">*</span></label>
+                            <select v-model="txKind" class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700">
+                                <option value="income">Income (E/I ➜ Asset)</option>
+                                <option value="expense">Expense (Asset ➜ E/I)</option>
+                                <option value="asset">Asset (Asset ➜ Asset)</option>
+                            </select>
+                        </div>
+
+                        <!-- Name + Category -->
                         <div class="grid gap-4 md:grid-cols-2">
                             <div class="md:col-span-2">
                                 <label class="mb-1 block text-sm font-medium">Transaction Name <span class="text-red-500">*</span></label>
@@ -228,17 +249,19 @@ function evaluate() {
                         <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
                             <h2 class="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Source (Sender)</h2>
 
-                            <!-- Account + Amount (actual) -->
                             <div class="grid gap-3 md:grid-cols-2">
                                 <div>
-                                    <label class="mb-1 block text-sm font-medium">Source Account <span class="text-red-500">*</span></label>
+                                    <label class="mb-1 block text-sm font-medium">
+                                        Source Account <span class="text-xs text-gray-500">({{ sourceHint }})</span>
+                                        <span class="text-red-500">*</span>
+                                    </label>
                                     <select
                                         v-model="form.from_account_id"
                                         class="w-full rounded-lg border px-3 py-2"
                                         :class="form.errors.from_account_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
                                     >
                                         <option :value="null">— Select Account —</option>
-                                        <option v-for="a in props.accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+                                        <option v-for="a in sourceOptions" :key="a.id" :value="a.id">{{ a.name }}</option>
                                     </select>
                                     <p v-if="form.errors.from_account_id" class="mt-1 text-xs text-red-600">{{ form.errors.from_account_id }}</p>
                                 </div>
@@ -260,7 +283,7 @@ function evaluate() {
                                 </div>
                             </div>
 
-                            <!-- Fees (dynamic) -->
+                            <!-- Fees (Sender) -->
                             <div class="mt-4">
                                 <div class="mb-2 flex items-center justify-between">
                                     <h3 class="text-sm font-medium">Fees (Sender)</h3>
@@ -314,7 +337,6 @@ function evaluate() {
                                     </div>
                                 </div>
 
-                                <!-- Computed total -->
                                 <div class="mt-3 grid gap-3 md:grid-cols-2">
                                     <div class="text-sm text-gray-600 dark:text-gray-300">
                                         Fees Total: <span class="font-semibold">{{ sourceFeesTotal.toFixed(2) }}</span>
@@ -338,17 +360,19 @@ function evaluate() {
                                 Destination (Receiver)
                             </h2>
 
-                            <!-- Account + Amount (actual) -->
                             <div class="grid gap-3 md:grid-cols-2">
                                 <div>
-                                    <label class="mb-1 block text-sm font-medium">Destination Account <span class="text-red-500">*</span></label>
+                                    <label class="mb-1 block text-sm font-medium">
+                                        Destination Account <span class="text-xs text-gray-500">({{ destHint }})</span>
+                                        <span class="text-red-500">*</span>
+                                    </label>
                                     <select
                                         v-model="form.to_account_id"
                                         class="w-full rounded-lg border px-3 py-2"
                                         :class="form.errors.to_account_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
                                     >
                                         <option :value="null">— Select Account —</option>
-                                        <option v-for="a in props.accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+                                        <option v-for="a in destOptions" :key="a.id" :value="a.id">{{ a.name }}</option>
                                     </select>
                                     <p v-if="form.errors.to_account_id" class="mt-1 text-xs text-red-600">{{ form.errors.to_account_id }}</p>
                                 </div>
@@ -370,7 +394,7 @@ function evaluate() {
                                 </div>
                             </div>
 
-                            <!-- Fees (dynamic) -->
+                            <!-- Fees (Receiver) -->
                             <div class="mt-4">
                                 <div class="mb-2 flex items-center justify-between">
                                     <h3 class="text-sm font-medium">Fees (Receiver)</h3>
@@ -424,7 +448,6 @@ function evaluate() {
                                     </div>
                                 </div>
 
-                                <!-- Computed total -->
                                 <div class="mt-3 grid gap-3 md:grid-cols-2">
                                     <div class="text-sm text-gray-600 dark:text-gray-300">
                                         Fees Total: <span class="font-semibold">{{ destFeesTotal.toFixed(2) }}</span>
@@ -531,7 +554,7 @@ function evaluate() {
                         </div>
 
                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                            Tip: The “Send/Receive Total” fields on the left are calculated automatically as <em>Actual + Fees</em>.
+                            Tip: The “Send/Receive Total” fields are calculated as <em>Actual + Fees</em>.
                         </p>
                     </div>
                 </aside>

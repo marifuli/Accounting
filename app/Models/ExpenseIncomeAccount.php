@@ -15,6 +15,7 @@ class ExpenseIncomeAccount extends Model
     protected $fillable = [
         'name',
         'description',
+        'current_balance',
         'type',
         'transaction_category_id',
     ];

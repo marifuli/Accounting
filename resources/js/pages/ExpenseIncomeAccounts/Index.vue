@@ -5,6 +5,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 type ExpenseIncomeAccount = {
     id: number | string;
     name: string;
+    current_balance: string | null;
     description?: string | null;
     type?: 'income' | 'expense' | string | null;
     transaction_category_id?: number | string | null;
@@ -77,6 +78,8 @@ function destroy(row: { id: number | string; name?: string }) {
                             <thead class="bg-gray-50 text-gray-700 dark:bg-gray-900/60 dark:text-gray-200">
                                 <tr>
                                     <th class="px-4 py-3">Name</th>
+                                    <th class="px-4 py-3">Type</th>
+                                    <th class="px-4 py-3">Current Balance</th>
                                     <th class="px-4 py-3">Description</th>
                                     <th class="px-4 py-3 text-right">Actions</th>
                                 </tr>
@@ -93,6 +96,8 @@ function destroy(row: { id: number | string; name?: string }) {
                                     class="border-t border-gray-100 hover:bg-gray-50/60 dark:border-gray-800 dark:hover:bg-gray-900/40"
                                 >
                                     <td class="px-4 py-3 font-medium">{{ row.name }}</td>
+                                    <td class="px-4 py-3 font-medium">{{ (row.type ?? '').toString().toUpperCase() || '—' }}</td>
+                                    <td class="px-4 py-3 font-medium">{{ row.current_balance }}</td>
                                     <td class="px-4 py-3">
                                         <span class="line-clamp-2 text-gray-700 dark:text-gray-300">
                                             {{ row.description ?? '—' }}

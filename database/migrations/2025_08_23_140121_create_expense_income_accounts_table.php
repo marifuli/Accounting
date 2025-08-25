@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('description');
+            $table->decimal('current_balance', 15, 2)->default(0.00);
             $table->enum('type', ['expense', 'income']);
             $table->foreignId('transaction_category_id')
                 ->nullable()

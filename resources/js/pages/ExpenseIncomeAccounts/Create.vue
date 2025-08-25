@@ -16,6 +16,7 @@ const breadcrumbs = [
 
 const form = useForm({
   name: '',
+  current_balance: 0 as number | string,
   description: '' as string | null,
   type: 'expense' as 'income' | 'expense',
   transaction_category_id: null as number | string | null,
@@ -67,6 +68,18 @@ function submit() {
                 placeholder="e.g. Groceries"
               />
               <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">{{ form.errors.name }}</p>
+            </div>
+
+            <div>
+              <label class="mb-1 block text-sm font-medium">Current Balance <span class="text-red-500">*</span></label>
+              <input
+                v-model="form.current_balance"
+                type="text"
+                class="w-full rounded-lg border px-3 py-2"
+                :class="form.errors.current_balance ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
+                placeholder="e.g. Groceries"
+              />
+              <p v-if="form.errors.current_balance" class="mt-1 text-xs text-red-600">{{ form.errors.current_balance }}</p>
             </div>
 
             <div>

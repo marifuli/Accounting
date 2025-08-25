@@ -35,8 +35,8 @@ const mainNavItems: NavItem[] = [
         icon: Banknote,
     },
     {
-        title: 'Transactionos',
-        href: '/transactionos',
+        title: 'transactions',
+        href: '/transactions',
         icon: Move3d,
     },
 ];

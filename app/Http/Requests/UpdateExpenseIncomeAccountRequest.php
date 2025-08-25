@@ -23,10 +23,11 @@ class UpdateExpenseIncomeAccountRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'                     => ['required', 'string', 'max:255'],
-            'description'              => ['nullable', 'string'],
-            'type'                     => ['required', Rule::in(['income', 'expense'])],
-            'transaction_category_id'  => ['nullable', 'integer', 'exists:transaction_categories,id'],
+            'name'                      => ['required', 'string', 'max:255'],
+            'current_balance'           => ['nullable','numeric','decimal:0,2'],
+            'description'               => ['nullable', 'string'],
+            'type'                      => ['required', Rule::in(['income', 'expense'])],
+            'transaction_category_id'   => ['nullable', 'integer', 'exists:transaction_categories,id'],
         ];
     }
 }

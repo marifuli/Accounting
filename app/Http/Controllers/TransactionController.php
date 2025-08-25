@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateTransactionRequest;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\Account;
+use App\Models\ExpenseIncomeAccount;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +18,7 @@ use App\Models\TransactionFee;
 class TransactionController extends Controller
 {
     /**
-     * GET /transactionos
+     * GET /transactions
      */
     public function index()
     {
@@ -29,32 +30,36 @@ class TransactionController extends Controller
             ->latest()
             ->paginate(15);
 
-        // View folder suggestion: resources/js/Pages/Transactionos/Index.vue
-        return Inertia::render('Transactionos/Index', [
+        // View folder suggestion: resources/js/Pages/transactions/Index.vue
+        return Inertia::render('transactions/Index', [
             'transactions' => $transactions,
         ]);
     }
 
     /**
-     * GET /transactionos/create
+     * GET /transactions/create
      */
     public function create()
     {
         $categories = TransactionCategory::select('id', 'name')
             ->orderBy('name')->get();
 
-        $accounts = Account::select('id', 'name')
+        $asset_accounts = Account::select('id', 'name')
+            ->orderBy('name')->get();
+        
+        $exp_inc_accounts = ExpenseIncomeAccount::select('id', 'name')
             ->orderBy('name')->get();
 
-        // resources/js/Pages/Transactionos/Create.vue
-        return Inertia::render('Transactionos/Create', [
-            'categories' => $categories,
-            'accounts'   => $accounts,
+        // resources/js/Pages/transactions/Create.vue
+        return Inertia::render('transactions/Create', [
+            'categories'        => $categories,
+            'accounts'          => $asset_accounts,
+            'exp_inc_accounts'   => $exp_inc_accounts,
         ]);
     }
 
     /**
-     * POST /transactionos
+     * POST /transactions
      */
     public function store(StoreTransactionRequest $request)
     {
@@ -123,14 +128,14 @@ class TransactionController extends Controller
             }
 
             if (!empty($feeRows)) {
-                \Log::info('Transaction Fees inserting.');
+                // \Log::info('Transaction Fees inserting.');
                 TransactionFee::insert($feeRows);
             }
 
             DB::commit();
 
             return redirect()
-                ->route('transactionos.index')
+                ->route('transactions.index')
                 ->with('success', 'Transaction created successfully.');
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -144,10 +149,10 @@ class TransactionController extends Controller
 
 
     /**
-     * GET /transactionos/{transactiono}
+     * GET /transactions/{transactiono}
      *
      * NOTE: route parameter is "transactiono" because the resource
-     * name is "transactionos". This ensures implicit binding works.
+     * name is "transactions". This ensures implicit binding works.
      */
     public function show(Transaction $transactiono)
     {
@@ -157,14 +162,14 @@ class TransactionController extends Controller
             'toAccount:id,name',
         ]);
 
-        // resources/js/Pages/Transactionos/Show.vue
-        return Inertia::render('Transactionos/Show', [
+        // resources/js/Pages/transactions/Show.vue
+        return Inertia::render('transactions/Show', [
             'transaction' => $transactiono,
         ]);
     }
 
     /**
-     * GET /transactionos/{transactiono}/edit
+     * GET /transactions/{transactiono}/edit
      */
     public function edit(Transaction $transactiono)
     {
@@ -174,8 +179,8 @@ class TransactionController extends Controller
         $accounts = Account::select('id', 'name')
             ->orderBy('name')->get();
 
-        // resources/js/Pages/Transactionos/Edit.vue
-        return Inertia::render('Transactionos/Edit', [
+        // resources/js/Pages/transactions/Edit.vue
+        return Inertia::render('transactions/Edit', [
             'transaction' => $transactiono->load([
                 'category:id,name',
                 'fromAccount:id,name',
@@ -187,7 +192,7 @@ class TransactionController extends Controller
     }
 
     /**
-     * PUT/PATCH /transactionos/{transactiono}
+     * PUT/PATCH /transactions/{transactiono}
      */
     public function update(UpdateTransactionRequest $request, Transaction $transactiono)
     {
@@ -216,12 +221,12 @@ class TransactionController extends Controller
         $transactiono->update($data);
 
         return redirect()
-            ->route('transactionos.index')
+            ->route('transactions.index')
             ->with('success', 'Transaction updated successfully.');
     }
 
     /**
-     * DELETE /transactionos/{transactiono}
+     * DELETE /transactions/{transactiono}
      */
     public function destroy(Transaction $transactiono)
     {
@@ -235,7 +240,7 @@ class TransactionController extends Controller
         $transactiono->delete();
 
         return redirect()
-            ->route('transactionos.index')
+            ->route('transactions.index')
             ->with('success', 'Transaction deleted successfully.');
     }
 }
