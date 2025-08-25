@@ -22,9 +22,14 @@ class StoreExpenseIncomeAccountRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Currencies exactly as in your migration enum
+        $currencies = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'BRL', 'ZAR', 'BDT', 'other'];
+
+
         return [
             'name'                      => ['required', 'string', 'max:255'],
-            'current_balance'           => ['nullable','numeric','decimal:0,2'],
+            'current_balance'           => ['nullable', 'numeric', 'decimal:0,2'],
+            'currency'                  => ['required', Rule::in($currencies)],
             'description'               => ['nullable', 'string'],
             'type'                      => ['required', Rule::in(['income', 'expense'])],
             'transaction_category_id'   => ['nullable', 'integer', 'exists:transaction_categories,id'],

@@ -40,7 +40,7 @@ class ExpenseIncomeAccountController extends Controller
     public function store(StoreExpenseIncomeAccountRequest $request)
     {
         $data = $request->validated();
-
+        // dd($data);
         $account = ExpenseIncomeAccount::create($data);
 
         return redirect()
@@ -59,15 +59,16 @@ class ExpenseIncomeAccountController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(ExpenseIncomeAccount $expenseIncomeAccount)
+    public function edit(ExpenseIncomeAccount $expense_income_account)
     {
         // Provide categories for the <select>
         $transactionCategories = TransactionCategory::select('id', 'name')
             ->orderBy('name')
             ->get();
 
+        // dd($expense_income_account);
         return Inertia::render('ExpenseIncomeAccounts/Edit', [
-            'expense_income_account' => $expenseIncomeAccount,
+            'expense_income_account' => $expense_income_account,
             'transactionCategories'  => $transactionCategories,
         ]);
     }

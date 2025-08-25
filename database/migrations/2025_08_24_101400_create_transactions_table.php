@@ -16,6 +16,8 @@ return new class extends Migration
 
             $table->string('name');
 
+            $table->enum('type', ['inc', 'exp', 'asset']);
+
             // Relations
             $table->foreignId('category_id')
                   ->nullable()

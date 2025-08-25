@@ -17,6 +17,7 @@ const breadcrumbs = [
 const form = useForm({
   name: '',
   current_balance: 0 as number | string,
+  currency: 'USD' as (typeof CURRENCIES)[number],
   description: '' as string | null,
   type: 'expense' as 'income' | 'expense',
   transaction_category_id: null as number | string | null,
@@ -27,6 +28,11 @@ function submit() {
     preserveScroll: true,
   })
 }
+
+// Currency list from your migration enum
+const CURRENCIES = [
+  'USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','BDT','other'
+] as const
 </script>
 
 <template>
@@ -68,6 +74,17 @@ function submit() {
                 placeholder="e.g. Groceries"
               />
               <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">{{ form.errors.name }}</p>
+            </div>
+
+             <div>
+              <label class="mb-1 block text-sm font-medium">Currency <span class="text-red-500">*</span></label>
+              <select
+                v-model="form.currency"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700"
+              >
+                <option v-for="c in CURRENCIES" :key="c" :value="c">{{ c }}</option>
+              </select>
+              <p v-if="form.errors.currency" class="mt-1 text-xs text-red-600">{{ form.errors.currency }}</p>
             </div>
 
             <div>

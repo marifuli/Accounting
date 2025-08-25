@@ -6,6 +6,7 @@ type ExpenseIncomeAccount = {
     id: number | string;
     name: string;
     current_balance: string | null;
+    currency: string | null;
     description?: string | null;
     type?: 'income' | 'expense' | string | null;
     transaction_category_id?: number | string | null;
@@ -80,6 +81,7 @@ function destroy(row: { id: number | string; name?: string }) {
                                     <th class="px-4 py-3">Name</th>
                                     <th class="px-4 py-3">Type</th>
                                     <th class="px-4 py-3">Current Balance</th>
+                                    <th class="px-4 py-3">Currency</th>
                                     <th class="px-4 py-3">Description</th>
                                     <th class="px-4 py-3 text-right">Actions</th>
                                 </tr>
@@ -97,7 +99,8 @@ function destroy(row: { id: number | string; name?: string }) {
                                 >
                                     <td class="px-4 py-3 font-medium">{{ row.name }}</td>
                                     <td class="px-4 py-3 font-medium">{{ (row.type ?? '').toString().toUpperCase() || '—' }}</td>
-                                    <td class="px-4 py-3 font-medium">{{ row.current_balance }}</td>
+                                    <td class="px-4 py-3 font-medium">{{ row.current_balance }}</td> 
+                                    <td class="px-4 py-3 font-medium">{{ row.currency }}</td>
                                     <td class="px-4 py-3">
                                         <span class="line-clamp-2 text-gray-700 dark:text-gray-300">
                                             {{ row.description ?? '—' }}
