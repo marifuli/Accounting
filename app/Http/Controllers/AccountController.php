@@ -72,25 +72,49 @@ class AccountController extends Controller
     {
         $data = $request->validated();
 
-        // If CVV/PIN are left blank on the form, do not overwrite existing values
+        // --- Normalize "code" (uppercased, space -> dash) ---
+        if (array_key_exists('code', $data)) {
+            $data['code'] = strtoupper(str_replace(' ', '-', (string) $data['code']));
+        }
+
+        // --- Normalize currency to allowed set (uppercased) ---
+        if (array_key_exists('currency', $data)) {
+            $allowed = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'BRL', 'ZAR', 'BDT', 'other'];
+            $cur = strtoupper((string) $data['currency']);
+            $data['currency'] = in_array($cur, $allowed, true) ? $cur : 'other';
+        }
+
+        // --- Normalize booleans ---
+        // If checkbox is missing, default to false (or keep existing if you prefer)
+        $data['is_active'] = array_key_exists('is_active', $data) ? (bool) $data['is_active'] : false;
+
+        // --- Decimals: coerce to 2dp if provided; don't null out on blank strings ---
+        foreach (['opening_balance', 'current_balance'] as $balanceField) {
+            if (array_key_exists($balanceField, $data)) {
+                if ($data[$balanceField] === '' || $data[$balanceField] === null) {
+                    unset($data[$balanceField]); // keep existing DB value
+                } else {
+                    $data[$balanceField] = round((float) $data[$balanceField], 2);
+                }
+            }
+        }
+
+        // --- CVV/PIN: if blank, do not overwrite existing values ---
         foreach (['card_cvv', 'card_pin'] as $secret) {
-            if (!array_key_exists($secret, $data) || is_null($data[$secret]) || $data[$secret] === '') {
+            if (!array_key_exists($secret, $data) || $data[$secret] === null || $data[$secret] === '') {
                 unset($data[$secret]);
             }
         }
 
-        // Avoid unintentionally nulling balances when inputs are left empty
-        foreach (['opening_balance', 'current_balance'] as $balanceField) {
-            if (array_key_exists($balanceField, $data) && $data[$balanceField] === null) {
-                unset($data[$balanceField]);
-            }
+        // --- When the account is not a card, clear card-only fields on the DB side ---
+        if (array_key_exists('type', $data) && $data['type'] !== 'card') {
+            $data['card_type'] = null;
+            $data['card_valid_from'] = null;
+            $data['card_expiry'] = null;
+            // Secrets should never persist for non-card types
+            $data['card_cvv'] = null;
+            $data['card_pin'] = null;
         }
-
-        // If current_balance not provided but opening_balance changed AND current is empty,
-        // you can choose to sync it (comment out if you prefer not to):
-        // if (!array_key_exists('current_balance', $data) && array_key_exists('opening_balance', $data) && (float)$account->current_balance === 0.0) {
-        //     $data['current_balance'] = $data['opening_balance'];
-        // }
 
         $account->update($data);
 
@@ -98,6 +122,7 @@ class AccountController extends Controller
             ->route('accounts.index')
             ->with('success', 'Account updated successfully.');
     }
+
 
 
     /**

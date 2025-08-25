@@ -5,6 +5,19 @@ import AppLayout from '@/layouts/AppLayout.vue'
 
 type AccountType = 'bank' | 'card' | 'mobile'
 
+/** Authoritative currency list used by the select */
+const CURRENCIES = [
+  'USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','BDT','other'
+] as const
+type CurrencyCode = typeof CURRENCIES[number]
+
+/** Card brands */
+const CARD_TYPES = [
+  'visa','mastercard','amex','discover','unionpay','jcb','diners_club','maestro','visa_electron',
+  'rupay','verve','troy','mir','elo','hipercard','bancontact','interac','dankort','bc_card',
+  'mada','eftpos','cartes_bancaires','uzcard','humo','other'
+] as const
+
 type Account = {
   id: number | string
   code: string
@@ -12,9 +25,11 @@ type Account = {
   name: string
   account_name?: string | null
 
-  currency: 'USD'|'EUR'|'GBP'|'JPY'|'AUD'|'CAD'|'CHF'|'CNY'|'INR'|'BRL'|'ZAR'|'BDT'|'other'
-  opening_balance?: number | string
-  current_balance?: number | string
+  /** Accept any string from backend; normalize below to CurrencyCode */
+  currency?: string | null
+
+  opening_balance?: number | string | null
+  current_balance?: number | string | null
 
   is_active?: boolean
   type: AccountType
@@ -33,38 +48,33 @@ type Account = {
 
 const props = defineProps<{ account: Account }>()
 
+/** Normalize any incoming currency to a supported option (uppercased); else 'other' */
+function normalizeCurrency(c?: string | null): CurrencyCode {
+  const up = (c ?? '').toString().toUpperCase()
+  return (CURRENCIES as readonly string[]).includes(up) ? (up as CurrencyCode) : 'other'
+}
+
 const breadcrumbs = [
   { title: 'Accounts', href: route('accounts.index') },
   { title: 'Edit' },
 ]
 
-// Card brands (from your migration)
-const CARD_TYPES = [
-  'visa','mastercard','amex','discover','unionpay','jcb','diners_club','maestro','visa_electron',
-  'rupay','verve','troy','mir','elo','hipercard','bancontact','interac','dankort','bc_card',
-  'mada','eftpos','cartes_bancaires','uzcard','humo','other'
-] as const
-
-// Currencies (from your migration)
-const CURRENCIES = [
-  'USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','BDT','other'
-] as const
-
-// Initialize form with existing account data
+/** Initialize form with normalized currency & existing account data */
 const form = useForm({
   code: props.account.code ?? '',
   swift_code: props.account.swift_code ?? null,
   name: props.account.name ?? '',
   account_name: props.account.account_name ?? null,
 
-  currency: props.account.currency ?? 'USD',
+  currency: normalizeCurrency(props.account.currency), // <-- fix
+
   opening_balance: props.account.opening_balance ?? 0,
   current_balance: props.account.current_balance ?? 0,
 
   is_active: props.account.is_active ?? true,
   type: props.account.type ?? 'bank',
 
-  card_type: props.account.card_type ?? 'other',
+  card_type: (props.account.card_type as typeof CARD_TYPES[number]) ?? 'other',
   account_number: props.account.account_number ?? null,
   bank_name: props.account.bank_name ?? null,
   bank_routing_number: props.account.bank_routing_number ?? null,
@@ -81,7 +91,7 @@ const form = useForm({
 
 const isCard = computed(() => form.type === 'card')
 
-// Clear card secrets when switching away from "card"
+/** Clear card secrets when switching away from "card" */
 watch(() => form.type, (t) => {
   if (t !== 'card') {
     form.card_type = 'other'
@@ -92,23 +102,25 @@ watch(() => form.type, (t) => {
   }
 })
 
-// If current_balance is empty/zero, keep it in sync with opening_balance edits
+/** If current_balance is empty/zero, keep it in sync with opening_balance edits */
 watch(() => form.opening_balance, (v) => {
   const curr = Number(form.current_balance || 0)
   if (!curr) form.current_balance = v ?? 0
 })
 
-// Keep CODE uppercase and sluggy
+/** Keep CODE uppercase and slug-like */
 function onCodeInput(e: Event) {
   const v = (e.target as HTMLInputElement).value
   form.code = v.toUpperCase().replace(/\s+/g, '-')
 }
 
 function submit() {
-  form.put(route('accounts.update', props.account.id), {
+  // Ensure currency is still normalized just before submit (covers any external changes)
+  form.currency = normalizeCurrency(form.currency as unknown as string)
+
+  form.put(route('accounts.update', (props.account.id as any)), {
     preserveScroll: true,
     onSuccess: () => {
-      // Clear sensitive fields after successful update
       form.reset('card_cvv', 'card_pin')
     },
   })
@@ -189,7 +201,9 @@ function submit() {
 
             <div>
               <label class="mb-1 block text-sm font-medium">Currency <span class="text-red-500">*</span></label>
+              <!-- The :key ensures the select fully re-renders if normalized currency ever changes -->
               <select
+                :key="form.currency"
                 v-model="form.currency"
                 class="w-full rounded-lg border px-3 py-2 border-gray-300 dark:border-gray-700"
               >
@@ -296,8 +310,8 @@ function submit() {
           </div>
         </section>
 
-        <!-- Card (conditional) -->
-        <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+        <!-- Card (only when type === 'card') -->
+        <section v-if="isCard" class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
           <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Card</h2>
           <div class="grid gap-4 md:grid-cols-2">
             <div>
