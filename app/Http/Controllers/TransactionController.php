@@ -10,6 +10,9 @@ use App\Models\Account;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use App\Models\TransactionFee;
+
 
 class TransactionController extends Controller
 {
@@ -19,10 +22,10 @@ class TransactionController extends Controller
     public function index()
     {
         $transactions = Transaction::with([
-                'category:id,name',
-                'fromAccount:id,name',
-                'toAccount:id,name',
-            ])
+            'category:id,name',
+            'fromAccount:id,name',
+            'toAccount:id,name',
+        ])
             ->latest()
             ->paginate(15);
 
@@ -55,33 +58,90 @@ class TransactionController extends Controller
      */
     public function store(StoreTransactionRequest $request)
     {
-        $data = $request->validated();
+        DB::beginTransaction();
 
-        // Normalize nullable FKs
-        foreach (['category_id', 'from_account_id', 'to_account_id'] as $fk) {
-            if (empty($data[$fk])) {
-                $data[$fk] = null;
-            }
-        }
-
-        // Handle optional multiple files
-        $paths = [];
-        if ($request->hasFile('attachments')) {
-            foreach ((array) $request->file('attachments') as $file) {
-                if ($file && $file->isValid()) {
-                    // store to public disk (make sure you ran: php artisan storage:link)
-                    $paths[] = $file->store('transactions', 'public');
+        try {
+            $formData = $request->validated();
+            // dd($formData);
+            // Normalize nullable FKs
+            foreach (['category_id', 'from_account_id', 'to_account_id'] as $fk) {
+                if (empty($formData[$fk])) {
+                    $formData[$fk] = null;
                 }
             }
+
+            // Handle optional multiple files
+            $paths = [];
+            if ($request->hasFile('attachments')) {
+                foreach ((array) $request->file('attachments') as $file) {
+                    if ($file && $file->isValid()) {
+                        // store to public disk (make sure you ran: php artisan storage:link)
+                        $paths[] = $file->store('transactions', 'public');
+                    }
+                }
+            }
+            $formData['attachments'] = $paths ?: null;
+
+            // Create the transaction
+            $transaction = Transaction::create($formData);
+
+            // Save fees (expecting arrays like fees_from[0][name], fees_from[0][amount], and same for fees_to)
+            $feesFrom = (array) $request->input('source_fees', []);
+            $feesTo   = (array) $request->input('dest_fees', []);
+
+            $now = now();
+            $feeRows = [];
+            // dd($feesFrom);
+            foreach ($feesFrom as $row) {
+                $name   = trim((string)($row['name'] ?? ''));
+                $amount = (float) ($row['amount'] ?? 0);
+                if ($name !== '' && $amount > 0) {
+                    $feeRows[] = [
+                        'transaction_id' => $transaction->id,
+                        'name'           => $name,
+                        'amount'         => $amount,
+                        'type'           => 'from',
+                        'created_at'     => $now,
+                        'updated_at'     => $now,
+                    ];
+                }
+            }
+
+            foreach ($feesTo as $row) {
+                $name   = trim((string)($row['name'] ?? ''));
+                $amount = (float) ($row['amount'] ?? 0);
+                if ($name !== '' && $amount > 0) {
+                    $feeRows[] = [
+                        'transaction_id' => $transaction->id,
+                        'name'           => $name,
+                        'amount'         => $amount,
+                        'type'           => 'to',
+                        'created_at'     => $now,
+                        'updated_at'     => $now,
+                    ];
+                }
+            }
+
+            if (!empty($feeRows)) {
+                \Log::info('Transaction Fees inserting.');
+                TransactionFee::insert($feeRows);
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('transactionos.index')
+                ->with('success', 'Transaction created successfully.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            report($e);
+
+            return back()
+                ->withErrors(['message' => 'Failed to create transaction.'])
+                ->withInput();
         }
-        $data['attachments'] = $paths ?: null;
-
-        Transaction::create($data);
-
-        return redirect()
-            ->route('transactionos.index')
-            ->with('success', 'Transaction created successfully.');
     }
+
 
     /**
      * GET /transactionos/{transactiono}
