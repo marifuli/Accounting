@@ -21,19 +21,82 @@ class TransactionController extends Controller
     /**
      * GET /transactions
      */
-    public function index()
+    public function index(Request $request)
     {
-        $transactions = Transaction::with([
+        // Build the base query + eager loads
+        $query = Transaction::with([
             'category:id,name',
             'fromAccount:id,name',
             'toAccount:id,name',
-        ])
-            ->latest()
-            ->paginate(15);
+        ]);
 
-        // View folder suggestion: resources/js/Pages/transactions/Index.vue
+        // Simple helper to coerce numeric inputs safely
+        $num = function ($v) {
+            if ($v === null || $v === '') return null;
+            return is_numeric($v) ? (float)$v : null;
+        };
+
+        // ---- Filters ----
+        if ($request->filled('from_account_id')) {
+            $query->where('from_account_id', $request->input('from_account_id'));
+        }
+        if ($request->filled('to_account_id')) {
+            $query->where('to_account_id', $request->input('to_account_id'));
+        }
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->input('category_id'));
+        }
+
+        // Amount range helpers
+        $ranges = [
+            'send_total_amount',
+            'send_actual_amount',
+            'receive_total_amount',
+            'receive_actual_amount',
+        ];
+
+        foreach ($ranges as $col) {
+            $min = $num($request->input("{$col}_min"));
+            $max = $num($request->input("{$col}_max"));
+            if (!is_null($min) && !is_null($max)) {
+                // both present
+                $query->whereBetween($col, [$min, $max]);
+            } elseif (!is_null($min)) {
+                $query->where($col, '>=', $min);
+            } elseif (!is_null($max)) {
+                $query->where($col, '<=', $max);
+            }
+        }
+
+        $transactions = $query
+            ->latest()
+            ->paginate(15)
+            ->appends($request->query()); // keep filters in pagination links
+
+        // Options for selects
+        $accounts   = Account::select('id', 'name')->orderBy('name')->get();
+        $categories = TransactionCategory::select('id', 'name')->orderBy('name')->get();
+
+        // Echo filters back to the page so v-models have initial values
+        $filters = [
+            'from_account_id'          => $request->input('from_account_id'),
+            'to_account_id'            => $request->input('to_account_id'),
+            'category_id'              => $request->input('category_id'),
+            'send_total_amount_min'    => $request->input('send_total_amount_min'),
+            'send_total_amount_max'    => $request->input('send_total_amount_max'),
+            'send_actual_amount_min'   => $request->input('send_actual_amount_min'),
+            'send_actual_amount_max'   => $request->input('send_actual_amount_max'),
+            'receive_total_amount_min' => $request->input('receive_total_amount_min'),
+            'receive_total_amount_max' => $request->input('receive_total_amount_max'),
+            'receive_actual_amount_min'=> $request->input('receive_actual_amount_min'),
+            'receive_actual_amount_max'=> $request->input('receive_actual_amount_max'),
+        ];
+
         return Inertia::render('transactions/Index', [
             'transactions' => $transactions,
+            'filters'      => $filters,
+            'accounts'     => $accounts,
+            'categories'   => $categories,
         ]);
     }
 
