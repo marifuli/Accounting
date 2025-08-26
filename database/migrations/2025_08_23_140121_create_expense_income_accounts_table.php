@@ -14,15 +14,28 @@ return new class extends Migration
         Schema::create('expense_income_accounts', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('description');
+            $table->string('description')->nullable();
             $table->decimal('current_balance', 15, 2)->default(0.00);
-            $table->enum('currency', ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'BRL', 'ZAR', 'BDT', 'other'])->default('USD');         // ISO 4217 currency code
+            $table->enum('currency', [
+                'USD',
+                'EUR',
+                'GBP',
+                'JPY',
+                'AUD',
+                'CAD',
+                'CHF',
+                'CNY',
+                'INR',
+                'BRL',
+                'ZAR',
+                'BDT',
+                'other'
+            ])->default('USD');
             $table->enum('type', ['expense', 'income']);
             $table->foreignId('transaction_category_id')
-                ->nullable()
                 ->constrained('transaction_categories')
-                ->nullOnDelete()
-                ->cascadeOnUpdate();
+                ->restrictOnDelete()
+                ->cascadeOnUpdate(); // required
             $table->timestamps();
         });
     }
