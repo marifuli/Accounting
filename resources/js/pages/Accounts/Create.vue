@@ -38,7 +38,7 @@ const CARD_TYPES = [
 
 // Currency list from your migration enum
 const CURRENCIES = [
-  'USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','BDT','other'
+  'BDT','USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','other'
 ] as const
 
 // ---- Form (matches columns exactly)
@@ -48,7 +48,7 @@ const form = useForm({
   name: '',
   account_name: null as string | null,
 
-  currency: 'USD' as (typeof CURRENCIES)[number],
+  currency: 'BDT' as (typeof CURRENCIES)[number],
   opening_balance: 0 as number | string,
   current_balance: 0 as number | string,
 

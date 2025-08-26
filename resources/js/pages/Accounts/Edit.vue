@@ -7,7 +7,7 @@ type AccountType = 'bank' | 'card' | 'mobile'
 
 /** Authoritative currency list used by the select */
 const CURRENCIES = [
-  'USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','BDT','other'
+  'BDT','USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','other'
 ] as const
 type CurrencyCode = typeof CURRENCIES[number]
 
