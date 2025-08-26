@@ -481,19 +481,62 @@ class TransactionController extends Controller
     /**
      * DELETE /transactions/{transactiono}
      */
-    public function destroy(Transaction $transactiono)
+    public function destroy(Transaction $transaction)
     {
-        // (Optional) delete stored files as well
-        if (is_array($transactiono->attachments)) {
-            foreach ($transactiono->attachments as $path) {
-                Storage::disk('public')->delete($path);
-            }
-        }
+        $toDec = static fn($v) => round((float) $v, 2);
 
-        $transactiono->delete();
+        $classesFor = static function (string $type) {
+            // income: From E/I -> To Asset
+            // expense: From Asset -> To E/I
+            // asset: From Asset -> To Asset
+            return match ($type) {
+                'income'  => ['from' => ExpenseIncomeAccount::class, 'to' => Account::class],
+                'expense' => ['from' => Account::class, 'to' => ExpenseIncomeAccount::class],
+                default   => ['from' => Account::class, 'to' => Account::class],
+            };
+        };
+
+        $lock = static function (string $model, $id) {
+            return $model::query()->lockForUpdate()->findOrFail($id);
+        };
+
+        DB::transaction(function () use ($transaction, $toDec, $classesFor, $lock) {
+            $classes = $classesFor($transaction->type);
+
+            // Lock current rows to prevent race conditions
+            $source = $lock($classes['from'], $transaction->from_account_id);
+            $dest   = $lock($classes['to'],   $transaction->to_account_id);
+
+            $sendTotal    = $toDec($transaction->send_total_amount);
+            $receiveTotal = $toDec($transaction->receive_total_amount);
+
+            // IMPORTANT: dest must be able to give back what it received
+            if ($toDec($dest->current_balance) - $receiveTotal < 0) {
+                throw ValidationException::withMessages([
+                    'to_account_id' => 'Cannot reverse: the destination account does not have enough balance to give back the received amount.',
+                ]);
+            }
+
+            // Reverse balance effects
+            $source->current_balance = $toDec($source->current_balance) + $sendTotal;     // give back to source
+            $dest->current_balance   = $toDec($dest->current_balance)   - $receiveTotal;  // take back from dest
+
+            $source->save();
+            $dest->save();
+
+            // If you stored files and want to remove them from disk too:
+            // if (is_array($transaction->attachments) && count($transaction->attachments)) {
+            //     \Storage::disk('public')->delete($transaction->attachments);
+            // }
+
+            // Fees will delete via FK cascade if you set it; otherwise:
+            // $transaction->fees()->delete();
+
+            $transaction->delete();
+        });
 
         return redirect()
             ->route('transactions.index')
-            ->with('success', 'Transaction deleted successfully.');
+            ->with('success', 'Transaction reversed and deleted.');
     }
 }
