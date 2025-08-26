@@ -296,59 +296,187 @@ class TransactionController extends Controller
     /**
      * GET /transactions/{transactiono}/edit
      */
+    // app/Http/Controllers/TransactionController.php
+
     public function edit(Transaction $transaction)
     {
-        $categories = TransactionCategory::select('id', 'name')
-            ->orderBy('name')->get();
+        $categories = TransactionCategory::select('id', 'name')->orderBy('name')->get();
+        $accounts = Account::select('id', 'name', 'currency', 'current_balance')->orderBy('name')->get();
+        $exp_inc_accounts = ExpenseIncomeAccount::select('id', 'name', 'currency', 'current_balance')->orderBy('name')->get();
 
-        $accounts = Account::select('id', 'name')
-            ->orderBy('name')->get();
+        // eager-load fees in one go
+        $transaction->load(['fees:id,transaction_id,name,amount,type']);
 
-        // resources/js/Pages/transactions/Edit.vue
+        $fees = $transaction->fees;
+        $source_fees = $fees->where('type', 'from')->values()->map(fn($f) => ['name' => $f->name, 'amount' => $f->amount])->all();
+        $dest_fees   = $fees->where('type', 'to')->values()->map(fn($f) => ['name' => $f->name, 'amount' => $f->amount])->all();
+
         return Inertia::render('transactions/Edit', [
-            'transaction' => $transactiono->load([
-                'category:id,name',
-                'fromAccount:id,name',
-                'toAccount:id,name',
-            ]),
-            'categories'  => $categories,
-            'accounts'    => $accounts,
+            'transaction'      => [
+                'id' => $transaction->id,
+                'type' => $transaction->type,
+                'name' => $transaction->name,
+                'category_id' => $transaction->category_id,
+                'from_account_id' => $transaction->from_account_id,
+                'send_actual_amount' => $transaction->send_actual_amount,
+                'send_total_amount' => $transaction->send_total_amount,
+                'to_account_id' => $transaction->to_account_id,
+                'receive_actual_amount' => $transaction->receive_actual_amount,
+                'receive_total_amount' => $transaction->receive_total_amount,
+                'description' => $transaction->description,
+                'attachments' => $transaction->attachments,
+            ],
+            'source_fees'       => $source_fees,
+            'dest_fees'         => $dest_fees,
+            'categories'        => $categories,
+            'accounts'          => $accounts,
+            'exp_inc_accounts'  => $exp_inc_accounts,
         ]);
     }
 
+
     /**
-     * PUT/PATCH /transactions/{transactiono}
+     * PUT/PATCH /transactions/{transaction}
      */
-    public function update(UpdateTransactionRequest $request, Transaction $transactiono)
+    public function update(UpdateTransactionRequest $request, Transaction $transaction)
     {
         $data = $request->validated();
 
-        foreach (['category_id', 'from_account_id', 'to_account_id'] as $fk) {
-            if (array_key_exists($fk, $data) && empty($data[$fk])) {
-                $data[$fk] = null;
-            }
-        }
-
-        // If new files are uploaded, append them to existing attachments
+        // ---- Handle new attachments (merge with existing) ----
+        $newPaths = [];
         if ($request->hasFile('attachments')) {
-            $existing = (array) ($transactiono->attachments ?? []);
             foreach ((array) $request->file('attachments') as $file) {
                 if ($file && $file->isValid()) {
-                    $existing[] = $file->store('transactions', 'public');
+                    $newPaths[] = $file->store('transactions', 'public');
                 }
             }
-            $data['attachments'] = $existing;
+        }
+        if (!empty($newPaths)) {
+            $existing = (array) ($transaction->attachments ?? []);
+            $data['attachments'] = array_values(array_merge($existing, $newPaths));
         } else {
-            // Keep existing attachments if none provided in request
+            // keep existing as-is if nothing uploaded
             unset($data['attachments']);
         }
 
-        $transactiono->update($data);
+        // ---- Extract fees payloads ----
+        $sourceFees = $data['source_fees'] ?? [];
+        $destFees   = $data['dest_fees'] ?? [];
+        unset($data['source_fees'], $data['dest_fees']);
+
+        // ---- Helpers ----
+        $toDec = static fn($v) => round((float)$v, 2);
+
+        // New totals from form
+        $newSendTotal    = $toDec($data['send_total_amount'] ?? 0);
+        $newReceiveTotal = $toDec($data['receive_total_amount'] ?? 0);
+        $newType         = $data['type'] ?? 'asset';
+
+        // Previous state (for reversal)
+        $oldType         = $transaction->type;
+        $oldSendTotal    = $toDec($transaction->send_total_amount);
+        $oldReceiveTotal = $toDec($transaction->receive_total_amount);
+        $oldFromId       = $transaction->from_account_id;
+        $oldToId         = $transaction->to_account_id;
+
+        // Helpers to lock appropriate model based on type
+        $lock = static function (string $model, $id) {
+            return $model::query()->lockForUpdate()->findOrFail($id);
+        };
+
+        // Which model classes to use for a given type
+        $classesFor = static function (string $type) {
+            // income: From E/I -> To Asset
+            // expense: From Asset -> To E/I
+            // asset: From Asset -> To Asset
+            return match ($type) {
+                'income'  => ['from' => ExpenseIncomeAccount::class, 'to' => Account::class],
+                'expense' => ['from' => Account::class, 'to' => ExpenseIncomeAccount::class],
+                default   => ['from' => Account::class, 'to' => Account::class],
+            };
+        };
+
+        DB::transaction(function () use (
+            $transaction,
+            $data,
+            $sourceFees,
+            $destFees,
+            $toDec,
+            $newSendTotal,
+            $newReceiveTotal,
+            $newType,
+            $oldType,
+            $oldSendTotal,
+            $oldReceiveTotal,
+            $oldFromId,
+            $oldToId,
+            $lock,
+            $classesFor
+        ) {
+            // 1) Reverse the previous balance effect
+            $oldClasses = $classesFor($oldType);
+            /** @var \Illuminate\Database\Eloquent\Model $prevSource */
+            $prevSource = $lock($oldClasses['from'], $oldFromId);
+            /** @var \Illuminate\Database\Eloquent\Model $prevDest */
+            $prevDest   = $lock($oldClasses['to'], $oldToId);
+
+            // Reverse: add back what we previously deducted from source, remove what we previously added to dest
+            $prevSource->current_balance = $toDec($prevSource->current_balance) + $oldSendTotal;
+            $prevDest->current_balance   = $toDec($prevDest->current_balance)   - $oldReceiveTotal;
+
+            $prevSource->save();
+            $prevDest->save();
+
+            // 2) Update the transaction record (base fields)
+            $transaction->update($data);
+
+            // 3) Replace fees
+            $transaction->fees()->delete();
+
+            foreach ($sourceFees as $f) {
+                if (!isset($f['name'], $f['amount'])) continue;
+                TransactionFee::create([
+                    'transaction_id' => $transaction->id,
+                    'name'           => (string)$f['name'],
+                    'amount'         => $toDec($f['amount']),
+                    'type'           => 'from',
+                ]);
+            }
+            foreach ($destFees as $f) {
+                if (!isset($f['name'], $f['amount'])) continue;
+                TransactionFee::create([
+                    'transaction_id' => $transaction->id,
+                    'name'           => (string)$f['name'],
+                    'amount'         => $toDec($f['amount']),
+                    'type'           => 'to',
+                ]);
+            }
+
+            // 4) Apply the new balance effect (validate first)
+            $newClasses = $classesFor($newType);
+            /** @var \Illuminate\Database\Eloquent\Model $source */
+            $source = $lock($newClasses['from'], $transaction->from_account_id);
+            /** @var \Illuminate\Database\Eloquent\Model $dest */
+            $dest   = $lock($newClasses['to'], $transaction->to_account_id);
+
+            if ($toDec($source->current_balance) - $newSendTotal < 0) {
+                throw ValidationException::withMessages([
+                    'from_account_id' => 'Insufficient balance in the source account for actual + fees.',
+                ]);
+            }
+
+            $source->current_balance = $toDec($source->current_balance) - $newSendTotal;
+            $dest->current_balance   = $toDec($dest->current_balance)   + $newReceiveTotal;
+
+            $source->save();
+            $dest->save();
+        });
 
         return redirect()
             ->route('transactions.index')
-            ->with('success', 'Transaction updated successfully.');
+            ->with('success', 'Transaction updated and balances adjusted.');
     }
+
 
     /**
      * DELETE /transactions/{transactiono}

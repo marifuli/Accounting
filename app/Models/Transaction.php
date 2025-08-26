@@ -33,7 +33,7 @@ class Transaction extends Model
         'send_total_amount'    => 'decimal:2',
         'send_actual_amount'   => 'decimal:2',
         'receive_total_amount' => 'decimal:2',
-        'receive_actual_amount'=> 'decimal:2',
+        'receive_actual_amount' => 'decimal:2',
     ];
 
     /**
@@ -52,5 +52,21 @@ class Transaction extends Model
     public function toAccount()
     {
         return $this->belongsTo(Account::class, 'to_account_id');
+    }
+
+    public function fees()
+    {
+        return $this->hasMany(TransactionFee::class)->orderBy('id');
+    }
+
+    // Optional convenience
+    public function sourceFees()
+    {
+        return $this->hasMany(TransactionFee::class)->where('type', TransactionFee::TYPE_FROM);
+    }
+
+    public function destFees()
+    {
+        return $this->hasMany(TransactionFee::class)->where('type', TransactionFee::TYPE_TO);
     }
 }
