@@ -72,51 +72,11 @@ class AccountController extends Controller
     {
         $data = $request->validated();
 
-        // --- Normalize "code" (uppercased, space -> dash) ---
-        if (array_key_exists('code', $data)) {
-            $data['code'] = strtoupper(str_replace(' ', '-', (string) $data['code']));
-        }
+        // Keep currency if omitted (defensive)
+        $data['currency'] = $data['currency'] ?? $account->currency;
 
-        // --- Normalize currency to allowed set (uppercased) ---
-        if (array_key_exists('currency', $data)) {
-            $allowed = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'BRL', 'ZAR', 'BDT', 'other'];
-            $cur = strtoupper((string) $data['currency']);
-            $data['currency'] = in_array($cur, $allowed, true) ? $cur : 'other';
-        }
-
-        // --- Normalize booleans ---
-        // If checkbox is missing, default to false (or keep existing if you prefer)
-        $data['is_active'] = array_key_exists('is_active', $data) ? (bool) $data['is_active'] : false;
-
-        // --- Decimals: coerce to 2dp if provided; don't null out on blank strings ---
-        foreach (['opening_balance', 'current_balance'] as $balanceField) {
-            if (array_key_exists($balanceField, $data)) {
-                if ($data[$balanceField] === '' || $data[$balanceField] === null) {
-                    unset($data[$balanceField]); // keep existing DB value
-                } else {
-                    $data[$balanceField] = round((float) $data[$balanceField], 2);
-                }
-            }
-        }
-
-        // --- CVV/PIN: if blank, do not overwrite existing values ---
-        foreach (['card_cvv', 'card_pin'] as $secret) {
-            if (!array_key_exists($secret, $data) || $data[$secret] === null || $data[$secret] === '') {
-                unset($data[$secret]);
-            }
-        }
-
-        // --- When the account is not a card, clear card-only fields on the DB side ---
-        if (array_key_exists('type', $data) && $data['type'] !== 'card') {
-            $data['card_type'] = null;
-            $data['card_valid_from'] = null;
-            $data['card_expiry'] = null;
-            // Secrets should never persist for non-card types
-            $data['card_cvv'] = null;
-            $data['card_pin'] = null;
-        }
-
-        $account->update($data);
+        // No conditional nulling — whatever the user filled stays.
+        $account->fill($data)->save();
 
         return redirect()
             ->route('accounts.index')
