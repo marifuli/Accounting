@@ -14,7 +14,9 @@ class UpdateTransactionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type'                  => ['required', 'string', 'in:income,expense,asset'],
+            // Accept both long and short codes
+            'type'                  => ['required', 'string', 'in:income,expense,asset,inc,exp,ast'],
+
             'name'                  => ['required', 'string', 'max:255'],
             'category_id'           => ['required', 'integer', 'exists:transaction_categories,id'],
 

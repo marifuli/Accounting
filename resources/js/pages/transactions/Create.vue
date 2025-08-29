@@ -10,26 +10,24 @@ type AccountWithBal = {
   currency: string | null;
   current_balance: string | number | null;
 };
-
 type Category = { id: number | string; name: string };
 
-/** ---------- Props (match controller) ---------- */
+/** ---------- Props (match your create() method) ---------- */
 const props = defineProps<{
   categories: Category[];
-  accounts: AccountWithBal[];         // Asset accounts (have currency + current_balance)
-  exp_inc_accounts: AccountWithBal[]; // Expense/Income accounts (have currency + current_balance)
+  accounts: AccountWithBal[];         // Asset accounts
+  exp_inc_accounts: AccountWithBal[]; // Expense/Income accounts
 }>();
 
 /** ---------- Breadcrumbs ---------- */
 const breadcrumbs = [{ title: 'Transactions', href: route('transactions.index') }, { title: 'Create' }];
 
-/** ---------- Transaction type (required by validation) ---------- */
+/** ---------- Transaction type ---------- */
 type TxType = 'income' | 'expense' | 'asset';
-const txType = ref<TxType>('income'); // default any you prefer
+const txType = ref<TxType>('income'); // default
 
 /** ---------- Form model ---------- */
 const form = useForm({
-  // validation: required
   type: txType.value as TxType,
 
   name: '',
@@ -47,7 +45,7 @@ const form = useForm({
   attachments: [] as File[],
 });
 
-/** Keep form.type in sync with the selector & reset account selections on change */
+/** Reset accounts & keep form.type in sync on change */
 watch(txType, () => {
   form.from_account_id = null;
   form.to_account_id = null;
@@ -62,17 +60,18 @@ const n = (v: unknown) => {
 };
 const isDepleted = (acc?: AccountWithBal | null) => !acc || n(acc.current_balance) <= 0;
 
-/** ---------- Source & Destination options by type ---------- */
+/** ---------- Options by type (YOUR RULES) ---------- */
+// Income:   From = exp_inc_accounts, To = accounts
+// Expense:  From = accounts,         To = exp_inc_accounts
+// Asset:    From = accounts,         To = accounts
 const sourceOptions = computed<AccountWithBal[]>(() => {
-  if (txType.value === 'income') return props.exp_inc_accounts; // E/I ➜ Asset (source is E/I)
-  return props.accounts;                                        // Expense/Asset: source is Asset
+  return txType.value === 'income' ? props.exp_inc_accounts : props.accounts;
 });
 const destOptions = computed<AccountWithBal[]>(() => {
-  if (txType.value === 'expense') return props.exp_inc_accounts; // Asset ➜ E/I (dest is E/I)
-  return props.accounts;                                         // Income/Asset: dest is Asset
+  return txType.value === 'expense' ? props.exp_inc_accounts : props.accounts;
 });
 
-/** ---------- Selected accounts & display info ---------- */
+/** Selected accounts & info */
 const selectedSource = computed(
   () => sourceOptions.value.find(a => String(a.id) === String(form.from_account_id)) || null
 );
@@ -109,24 +108,19 @@ watch([() => form.receive_actual_amount, destFeesTotal], () => {
   form.receive_total_amount = n(form.receive_actual_amount) + destFeesTotal.value;
 }, { immediate: true });
 
-/** ---------- BALANCE RULE: actual + sender fees must be ≤ source balance ---------- */
-// NEW: total needed from source = actual + sender fees (already computed as send_total_amount)
+/** ---------- Overdraft hints (soft) ---------- */
 const neededFromSource = computed(() => n(form.send_total_amount));
-
-// Keep your old per-amount check (optional)…
 const amountExceedsSource = computed(() => {
   if (!selectedSource.value) return false;
   const bal = n(selectedSource.value.current_balance);
   const amt = n(form.send_actual_amount);
   return amt > 0 && bal > 0 && amt > bal;
 });
-
-// NEW: the authoritative blocker = total (actual + fees) vs source balance
 const totalExceedsSource = computed(() => {
   if (!selectedSource.value) return false;
   const bal = n(selectedSource.value.current_balance);
   const need = neededFromSource.value;
-  return need > 0 && bal > 0 && need > bal;
+  return need > 0 && bal >= 0 && need > bal;
 });
 
 /** ---------- Attachments ---------- */
@@ -147,23 +141,16 @@ const baseRequiredOk = computed(() =>
   n(form.send_actual_amount) > 0 &&
   n(form.receive_actual_amount) > 0
 );
+const canSubmit = computed(() => baseRequiredOk.value);
 
-/** Block submit if source account has null/0 balance OR if (actual + fees) > balance */
-const canSubmit = computed(() =>
-  baseRequiredOk.value &&
-  !sourceIsDepleted.value &&
-  !totalExceedsSource.value // ← NEW hard block
-);
-
-/** ---------- Submit (multipart, fees included) ---------- */
+/** ---------- Submit (multipart, includes fees & files) ---------- */
 function submit() {
   if (!canSubmit.value) return;
 
   form.transform((data) => {
     const fd = new FormData();
 
-    // REQUIRED BY VALIDATION
-    fd.append('type', data.type); // <- IMPORTANT: send as 'type'
+    fd.append('type', data.type); // controller will normalize to inc/exp/asset
 
     fd.append('name', data.name ?? '');
     fd.append('category_id', data.category_id ? String(data.category_id) : '');
@@ -180,7 +167,6 @@ function submit() {
 
     for (const f of data.attachments as File[]) fd.append('attachments[]', f);
 
-    // Fees payloads
     sourceFees.forEach((f, i) => {
       const hasAny = (f.name ?? '').trim() !== '' || n(f.amount) > 0;
       if (!hasAny) return;
@@ -201,7 +187,7 @@ function submit() {
   });
 }
 
-/** ---------- Right-side calculator ---------- */
+/** ---------- Calculator (optional) ---------- */
 const calc = reactive({ display: '' as string, result: '' as string });
 function append(val: string) { calc.display += val; }
 function clearAll() { calc.display = ''; calc.result = ''; }
@@ -232,9 +218,6 @@ function evaluate() {
                 :class="canSubmit ? 'bg-gray-900 hover:opacity-90 dark:bg-white dark:text-gray-900' : 'bg-gray-400 cursor-not-allowed'"
                 :disabled="form.processing || !canSubmit"
                 @click="submit"
-                :title="sourceIsDepleted
-                  ? 'Cannot transfer from an account with 0 balance'
-                  : (totalExceedsSource ? 'Insufficient balance for actual + fees' : '')"
               >
                 Save
               </button>
@@ -242,7 +225,7 @@ function evaluate() {
           </div>
 
           <form @submit.prevent="submit" class="grid gap-6">
-            <!-- Transaction Type (REQUIRED) -->
+            <!-- Type -->
             <div>
               <label class="mb-1 block text-sm font-medium">Transaction Type <span class="text-red-500">*</span></label>
               <select v-model="txType" class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700">
@@ -251,6 +234,9 @@ function evaluate() {
                 <option value="asset">Asset (Asset ➜ Asset)</option>
               </select>
               <p v-if="form.errors.type" class="mt-1 text-xs text-red-600">{{ form.errors.type }}</p>
+              <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                Overdrafts are permitted. Balances may go negative.
+              </p>
             </div>
 
             <!-- Name + Category -->
@@ -281,7 +267,7 @@ function evaluate() {
               </div>
             </div>
 
-            <!-- SOURCE (Sender) -->
+            <!-- SOURCE -->
             <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <h2 class="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Source (Sender)</h2>
 
@@ -294,28 +280,15 @@ function evaluate() {
                     :class="form.errors.from_account_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
                   >
                     <option :value="null">— Select Account —</option>
-                    <!-- disable depleted OR underfunded for current need -->
-                    <option
-                      v-for="a in sourceOptions"
-                      :key="a.id"
-                      :value="a.id"
-                      :disabled="!a || n(a.current_balance ?? 0) <= 0 || n(a.current_balance ?? 0) < neededFromSource"
-                    >
+                    <option v-for="a in sourceOptions" :key="a.id" :value="a.id">
                       {{ a.name }}
                     </option>
                   </select>
                   <p v-if="form.errors.from_account_id" class="mt-1 text-xs text-red-600">{{ form.errors.from_account_id }}</p>
 
-                  <!-- Balance & Currency -->
                   <div class="mt-2 flex items-center gap-2 text-xs">
-                    <span class="rounded-md border px-1.5 py-0.5" :class="sourceIsDepleted ? 'border-red-300 text-red-600' : 'border-gray-300 text-gray-600'">
+                    <span class="rounded-md border px-1.5 py-0.5 border-gray-300 text-gray-600">
                       Available: <strong>{{ sourceBalance ?? '—' }}</strong> <span v-if="sourceCurrency !== '—'">{{ sourceCurrency }}</span>
-                    </span>
-                    <span
-                      v-if="sourceIsDepleted"
-                      class="rounded-md border border-red-300 bg-red-50 px-1.5 py-0.5 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-300"
-                    >
-                      Cannot transfer from depleted account
                     </span>
                   </div>
                 </div>
@@ -330,29 +303,26 @@ function evaluate() {
                     v-model="form.send_actual_amount"
                     type="number" step="0.01" inputmode="decimal"
                     class="w-full rounded-lg border px-3 py-2"
-                    :class="[
-                      form.errors.send_actual_amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-700',
-                      sourceIsDepleted ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
-                    ]"
-                    :disabled="sourceIsDepleted"
+                    :class="form.errors.send_actual_amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
                     placeholder="0.00"
                   />
                   <p v-if="form.errors.send_actual_amount" class="mt-1 text-xs text-red-600">
                     {{ form.errors.send_actual_amount }}
                   </p>
-                  <!-- NEW: total-based hard error -->
-                  <p v-else-if="totalExceedsSource" class="mt-1 text-xs text-red-600">
-                    Not enough balance: need {{ neededFromSource.toFixed(2) }} {{ sourceCurrency }},
-                    available {{ (sourceBalance ?? 0) }} {{ sourceCurrency }}.
+                  <p v-else-if="sourceIsDepleted" class="mt-1 text-xs text-amber-600">
+                    Source has 0 balance — this will overdraft (negative balance).
                   </p>
-                  <!-- Optional: soft warning about actual alone -->
+                  <p v-else-if="totalExceedsSource" class="mt-1 text-xs text-amber-600">
+                    This transfer will overdraft the source by
+                    {{ (neededFromSource - n(sourceBalance ?? 0)).toFixed(2) }} {{ sourceCurrency }}.
+                  </p>
                   <p v-else-if="amountExceedsSource" class="mt-1 text-xs text-amber-600">
                     Heads-up: actual amount exceeds available balance (before fees).
                   </p>
                 </div>
               </div>
 
-              <!-- Fees (Sender) -->
+              <!-- Source Fees -->
               <div class="mt-4">
                 <div class="mb-2 flex items-center justify-between">
                   <h3 class="text-sm font-medium">Fees (Sender)</h3>
@@ -393,7 +363,7 @@ function evaluate() {
               </div>
             </div>
 
-            <!-- DESTINATION (Receiver) -->
+            <!-- DESTINATION -->
             <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-800">
               <h2 class="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Destination (Receiver)</h2>
 
@@ -410,7 +380,6 @@ function evaluate() {
                   </select>
                   <p v-if="form.errors.to_account_id" class="mt-1 text-xs text-red-600">{{ form.errors.to_account_id }}</p>
 
-                  <!-- Balance & Currency -->
                   <div class="mt-2 flex items-center gap-2 text-xs">
                     <span class="rounded-md border border-gray-300 px-1.5 py-0.5 text-gray-600">
                       Current: <strong>{{ destBalance ?? '—' }}</strong> <span v-if="destCurrency !== '—'">{{ destCurrency }}</span>
@@ -435,7 +404,7 @@ function evaluate() {
                 </div>
               </div>
 
-              <!-- Fees (Receiver) -->
+              <!-- Dest Fees -->
               <div class="mt-4">
                 <div class="mb-2 flex items-center justify-between">
                   <h3 class="text-sm font-medium">Fees (Receiver)</h3>
@@ -509,7 +478,7 @@ function evaluate() {
           </form>
         </section>
 
-        <!-- RIGHT: CALCULATOR -->
+        <!-- RIGHT: Calculator -->
         <aside class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
           <h2 class="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Calculator</h2>
 
@@ -543,7 +512,7 @@ function evaluate() {
             </div>
 
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              Tip: The “Send/Receive Total” fields are calculated as <em>Actual + Fees</em>.
+              Tip: “Send/Receive Total” are calculated as <em>Actual + Fees</em>. Overdrafts are allowed.
             </p>
           </div>
         </aside>
