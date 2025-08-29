@@ -7,6 +7,9 @@ use App\Http\Requests\UpdateAccountRequest;
 use App\Models\Account;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\Transaction; 
+use Illuminate\Http\RedirectResponse;
+
 
 class AccountController extends Controller
 {
@@ -83,14 +86,32 @@ class AccountController extends Controller
             ->with('success', 'Account updated successfully.');
     }
 
-
-
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Account $account)
+
+    public function destroy(Account $account): RedirectResponse
     {
+        $isUsed = Transaction::where(function ($q) use ($account) {
+            $q->where(fn($qq) => $qq->where('type', 'inc')->where('to_account_id', $account->id))
+              ->orWhere(fn($qq) => $qq->where('type', 'exp')->where('from_account_id', $account->id))
+              ->orWhere(fn($qq) => $qq->where('type', 'asset')
+                    ->where(function ($q2) use ($account) {
+                        $q2->where('from_account_id', $account->id)
+                           ->orWhere('to_account_id', $account->id);
+                    }));
+        })->exists();
+
+        if ($isUsed) {
+            return redirect()
+                ->route('accounts.index')
+                ->with('error', 'Account cannot be deleted because it is used in one or more transactions.');
+        }
+
         $account->delete();
-        return redirect()->route('accounts.index')->with('204', 'Account deleted successfully.');
+
+        return redirect()
+            ->route('accounts.index')
+            ->with('success', 'Account deleted successfully.');
     }
 }

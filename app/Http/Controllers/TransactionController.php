@@ -131,7 +131,6 @@ class TransactionController extends Controller
     // app/Http/Controllers/TransactionController.php
 
     public function store(StoreTransactionRequest $request)
-    // public function store(Request $request)
     {
         // dd($request->all());
         $data = $request->validated();
