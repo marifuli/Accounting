@@ -30,7 +30,7 @@ return new class extends Migration
                 'ZAR',
                 'BDT',
                 'other'
-            ])->default('USD');
+            ])->default('BDT');
             $table->enum('type', ['expense', 'income']);
             $table->foreignId('transaction_category_id')
                 ->constrained('transaction_categories')

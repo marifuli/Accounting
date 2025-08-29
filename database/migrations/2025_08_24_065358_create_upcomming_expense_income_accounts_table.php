@@ -17,6 +17,22 @@ return new class extends Migration
             $table->string('title');
             $table->text('description')->nullable();
 
+            $table->decimal('amount', 15, 2)->default(0.00);
+            $table->enum('currency', [
+                'USD',
+                'EUR',
+                'GBP',
+                'JPY',
+                'AUD',
+                'CAD',
+                'CHF',
+                'CNY',
+                'INR',
+                'BRL',
+                'ZAR',
+                'BDT',
+                'other'
+            ])->default('BDT');
         
             $table->foreignId('eia_id')
                 ->nullable()

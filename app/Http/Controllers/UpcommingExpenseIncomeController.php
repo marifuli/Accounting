@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateUpcommingExpenseIncomeRequest;
 use App\Models\ExpenseIncomeAccount;
 use App\Models\UpcommingExpenseIncome;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class UpcommingExpenseIncomeController extends Controller
@@ -34,13 +35,18 @@ class UpcommingExpenseIncomeController extends Controller
     /**
      * Store a newly created resource in storage.
      */
+    // app/Http/Controllers/UpcommingExpenseIncomeController.php
+
     public function store(StoreUpcommingExpenseIncomeRequest $request)
     {
-        // Validated payload
+        // Validated payload (now includes amount & currency)
         $data = $request->validated();
 
         // Normalize optional FK ('' → null)
         $data['eia_id'] = $request->filled('eia_id') ? (int) $request->input('eia_id') : null;
+
+        // Coerce amount to 2dp just to be explicit
+        $data['amount'] = number_format((float) $data['amount'], 2, '.', '');
 
         // Ensure target folder exists: storage/app/public/upcoming
         $disk = \Illuminate\Support\Facades\Storage::disk('public');
@@ -50,9 +56,8 @@ class UpcommingExpenseIncomeController extends Controller
 
         // Collect and store uploaded files
         $paths = [];
-        $files = $request->file('attachments', []);           // may be [] or UploadedFile[]
+        $files = $request->file('attachments', []); // may be [] or UploadedFile[]
 
-        // Normalize to array in case a single file object is sent
         if ($files instanceof \Illuminate\Http\UploadedFile) {
             $files = [$files];
         }
@@ -60,7 +65,6 @@ class UpcommingExpenseIncomeController extends Controller
         if (is_array($files)) {
             foreach ($files as $file) {
                 if ($file && $file->isValid()) {
-                    // Stores to storage/app/public/upcoming and returns "upcoming/<hash>.<ext>"
                     $paths[] = $file->store('upcoming', 'public');
                 }
             }
@@ -75,6 +79,7 @@ class UpcommingExpenseIncomeController extends Controller
             ->route('upcomming-expense-income.index')
             ->with('success', 'Upcoming income/expense created successfully.');
     }
+
 
 
 
@@ -110,10 +115,14 @@ class UpcommingExpenseIncomeController extends Controller
                 'date'        => $upcomming_expense_income->date?->toDateString() ?? $upcomming_expense_income->date,
                 'type'        => $upcomming_expense_income->type,
                 'attachments' => $attachments, // array of "upcoming/...."
+                // NEW
+                'amount'      => $upcomming_expense_income->amount,
+                'currency'    => $upcomming_expense_income->currency,
             ],
             'expIncAccounts' => $expIncAccounts,
         ]);
     }
+
 
 
     /**
@@ -130,6 +139,11 @@ class UpcommingExpenseIncomeController extends Controller
             $data['eia_id'] = null;
         }
 
+        // Explicitly normalize amount (force 2dp)
+        if (isset($data['amount'])) {
+            $data['amount'] = number_format((float) $data['amount'], 2, '.', '');
+        }
+
         // Optional new files — if provided, append to existing
         $newPaths = [];
         if ($request->hasFile('attachments')) {
@@ -144,8 +158,7 @@ class UpcommingExpenseIncomeController extends Controller
             $existing = (array) ($upcomming_expense_income->attachments ?? []);
             $data['attachments'] = array_values(array_unique(array_merge($existing, $newPaths)));
         } else {
-            // Don’t overwrite attachments if none uploaded
-            unset($data['attachments']);
+            unset($data['attachments']); // keep existing attachments
         }
 
         $upcomming_expense_income->update($data);
@@ -155,6 +168,7 @@ class UpcommingExpenseIncomeController extends Controller
             ->with('success', 'Upcoming item updated successfully.');
     }
 
+
     /**
      * Remove the specified resource from storage.
      */
@@ -162,7 +176,9 @@ class UpcommingExpenseIncomeController extends Controller
     {
         // (Optional) remove stored files; comment these 3 lines if you don’t want to delete files
         foreach ((array) $upcomming_expense_income->attachments as $path) {
-            if ($path) Storage::disk('public')->delete($path);
+            if ($path) {
+                Storage::disk('public')->delete($path);
+            }
         }
 
         $upcomming_expense_income->delete();
@@ -183,7 +199,7 @@ class UpcommingExpenseIncomeController extends Controller
         $path = $attachments[$index];
 
         // Delete from disk
-        \Storage::disk('public')->delete($path);
+        Storage::disk('public')->delete($path);
 
         // Remove from DB array
         unset($attachments[$index]);

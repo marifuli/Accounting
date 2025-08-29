@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('account_name')->nullable();
 
-            $table->enum('currency', ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'BRL', 'ZAR', 'BDT', 'other'])->default('USD');         // ISO 4217 currency code
+            $table->enum('currency', ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'BRL', 'ZAR', 'BDT', 'other'])->default('BDT');         // ISO 4217 currency code
             $table->decimal('opening_balance', 15, 2)->default(0.00);
             $table->decimal('current_balance', 15, 2)->default(0.00);
 

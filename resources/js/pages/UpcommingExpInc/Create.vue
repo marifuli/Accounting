@@ -1,3 +1,4 @@
+<!-- resources/js/pages/UpcommingExpenseIncome/Create.vue -->
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
@@ -13,10 +14,16 @@ const breadcrumbs = [{ title: 'Upcoming E/I', href: '/upcomming-expense-income' 
 const form = useForm({
     title: '',
     description: '' as string | null,
-    eia_id: null as number | string | null, // foreign key column in your table
+    eia_id: null as number | string | null,
     date: '' as string, // YYYY-MM-DD
     type: 'expense' as 'income' | 'expense',
-    attachments: [] as File[], // multiple files
+    // NEW
+    amount: '' as string | number,
+    currency: 'BDT' as
+        | 'USD' | 'EUR' | 'GBP' | 'JPY' | 'AUD' | 'CAD' | 'CHF' | 'CNY'
+        | 'INR' | 'BRL' | 'ZAR' | 'BDT' | 'other',
+
+    attachments: [] as File[],
 });
 
 function onFilesChanged(e: Event) {
@@ -38,11 +45,14 @@ function submit() {
         if (data.date) fd.append('date', data.date);
         fd.append('type', data.type);
 
+        // NEW
+        fd.append('amount', String(data.amount ?? '0'));
+        fd.append('currency', String(data.currency));
+
         if (data.eia_id !== null && data.eia_id !== '' && data.eia_id !== undefined) {
             fd.append('eia_id', String(data.eia_id));
         }
 
-        // IMPORTANT: index the files for Laravel ("attachments.*")
         (data.attachments as File[]).forEach((file, i) => {
             fd.append(`attachments[${i}]`, file);
         });
@@ -123,6 +133,47 @@ function submit() {
                             <p v-if="form.errors.type" class="mt-1 text-xs text-red-600">{{ form.errors.type }}</p>
                         </div>
 
+                        <!-- NEW: Amount -->
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Amount <span class="text-red-500">*</span></label>
+                            <input
+                                v-model="form.amount"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                inputmode="decimal"
+                                class="w-full rounded-lg border px-3 py-2"
+                                :class="form.errors.amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
+                                placeholder="0.00"
+                            />
+                            <p v-if="form.errors.amount" class="mt-1 text-xs text-red-600">{{ form.errors.amount }}</p>
+                        </div>
+
+                        <!-- NEW: Currency -->
+                        <div>
+                            <label class="mb-1 block text-sm font-medium">Currency <span class="text-red-500">*</span></label>
+                            <select
+                                v-model="form.currency"
+                                class="w-full rounded-lg border px-3 py-2"
+                                :class="form.errors.currency ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
+                            >
+                                <option value="BDT">BDT</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                                <option value="JPY">JPY</option>
+                                <option value="AUD">AUD</option>
+                                <option value="CAD">CAD</option>
+                                <option value="CHF">CHF</option>
+                                <option value="CNY">CNY</option>
+                                <option value="INR">INR</option>
+                                <option value="BRL">BRL</option>
+                                <option value="ZAR">ZAR</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <p v-if="form.errors.currency" class="mt-1 text-xs text-red-600">{{ form.errors.currency }}</p>
+                        </div>
+
                         <div class="md:col-span-2">
                             <label class="mb-1 block text-sm font-medium">Linked Account (optional)</label>
                             <select
@@ -151,7 +202,7 @@ function submit() {
                     </div>
                 </section>
 
-                <!-- Attachments -->
+                <!-- Attachments (unchanged) -->
                 <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
                     <h2 class="mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Attachments</h2>
                     <div class="grid gap-3">

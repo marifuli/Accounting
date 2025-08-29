@@ -19,10 +19,13 @@ class UpcommingExpenseIncome extends Model
         'date',
         'type',
         'attachments',
+        'amount',
+        'currency',
     ];
 
      protected $casts = [
-        'attachments' => 'array',   // <— so arrays are stored/retrieved as JSON automatically
-        'date'        => 'date',
+        'attachments'   => 'array',   // <— so arrays are stored/retrieved as JSON automatically
+        'date'          => 'date',
+        'amount'        => 'decimal:2',
     ];
 }

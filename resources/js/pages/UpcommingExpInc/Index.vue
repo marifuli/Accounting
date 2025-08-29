@@ -11,6 +11,9 @@ type UpItem = {
   type?: 'income' | 'expense' | string | null
   attachments?: string[] | null
   created_at?: string | null
+  // NEW:
+  amount?: string | number | null
+  currency?: string | null
 }
 
 type PaginationLink = { url: string | null; label: string; active: boolean }
@@ -24,7 +27,6 @@ type Paginator<T> = {
   links: PaginationLink[]
 }
 
-// 👇 MUST match controller compact('upcommingExpIncs')
 const props = defineProps<{ upcommingExpIncs: Paginator<UpItem> }>()
 
 const breadcrumbs = [{ title: 'Upcoming E/I', href: route('upcomming-expense-income.index') }]
@@ -35,6 +37,18 @@ function fmtDate(iso?: string | null) {
   return isNaN(d.getTime())
     ? iso
     : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })
+}
+
+// NEW: currency-aware display like "BDT 1,234.50"
+function fmtMoney(amount?: string | number | null, currency?: string | null) {
+  if (amount === null || amount === undefined || amount === '') return '—'
+  const n = Number(amount)
+  if (Number.isNaN(n)) return String(amount)
+  // Show code explicitly to avoid locale surprises and to match enum
+  const code = (currency ?? 'BDT').toUpperCase()
+  // Format to 2dp with thousands separators
+  const formatted = n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return `${code} ${formatted}`
 }
 
 function destroy(row: { id: number | string; title?: string }) {
@@ -89,6 +103,8 @@ function destroy(row: { id: number | string; title?: string }) {
                   <th class="px-4 py-3">Title</th>
                   <th class="px-4 py-3">Date</th>
                   <th class="px-4 py-3">Type</th>
+                  <!-- NEW: Amount column -->
+                  <th class="px-4 py-3 text-right">Amount</th>
                   <th class="px-4 py-3">Linked A/C</th>
                   <th class="px-4 py-3">Attachments</th>
                   <th class="px-4 py-3 text-right">Actions</th>
@@ -97,7 +113,7 @@ function destroy(row: { id: number | string; title?: string }) {
 
               <tbody>
                 <tr v-if="!props.upcommingExpIncs?.data?.length">
-                  <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No upcoming items found.</td>
+                  <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No upcoming items found.</td>
                 </tr>
 
                 <tr
@@ -129,6 +145,11 @@ function destroy(row: { id: number | string; title?: string }) {
                     >
                       {{ row.type ?? '—' }}
                     </span>
+                  </td>
+
+                  <!-- NEW: formatted amount -->
+                  <td class="px-4 py-3 text-right tabular-nums">
+                    {{ fmtMoney(row.amount, row.currency) }}
                   </td>
 
                   <td class="px-4 py-3">

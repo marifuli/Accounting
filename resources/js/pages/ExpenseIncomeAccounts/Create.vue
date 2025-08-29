@@ -17,7 +17,7 @@ const breadcrumbs = [
 const form = useForm({
   name: '',
   current_balance: 0 as number | string,
-  currency: 'USD' as (typeof CURRENCIES)[number],
+  currency: 'BDT' as (typeof CURRENCIES)[number],
   description: '' as string | null,
   type: 'expense' as 'income' | 'expense',
   transaction_category_id: null as number | string | null,
@@ -31,7 +31,7 @@ function submit() {
 
 // Currency list from your migration enum
 const CURRENCIES = [
-  'USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','BDT','other'
+  'BDT','USD','EUR','GBP','JPY','AUD','CAD','CHF','CNY','INR','BRL','ZAR','other'
 ] as const
 </script>
 
