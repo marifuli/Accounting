@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateTransactionRequest extends FormRequest
 {
@@ -13,18 +14,38 @@ class UpdateTransactionRequest extends FormRequest
 
     public function rules(): array
     {
+        // Accept both long and short codes
+        $typeInput = strtolower((string) $this->input('type'));
+        $typeLong  = match ($typeInput) {
+            'inc', 'income'  => 'income',
+            'exp', 'expense' => 'expense',
+            'ast', 'asset',  'asset' => 'asset',
+            default          => 'asset',
+        };
+
+        // Choose the proper table for each side based on type
+        // income : from E/I -> to Account
+        // expense: from Account -> to E/I
+        // asset  : from Account -> to Account
+        $fromExists = $typeLong === 'income'
+            ? Rule::exists('expense_income_accounts', 'id')
+            : Rule::exists('accounts', 'id');
+
+        $toExists = $typeLong === 'expense'
+            ? Rule::exists('expense_income_accounts', 'id')
+            : Rule::exists('accounts', 'id');
+
         return [
-            // Accept both long and short codes
             'type'                  => ['required', 'string', 'in:income,expense,asset,inc,exp,ast'],
 
             'name'                  => ['required', 'string', 'max:255'],
-            'category_id'           => ['required', 'integer', 'exists:transaction_categories,id'],
+            'category_id'           => ['required', 'integer', Rule::exists('transaction_categories', 'id')],
 
-            'from_account_id'       => ['required', 'integer', 'different:to_account_id', 'exists:accounts,id'],
+            'from_account_id'       => ['required', 'integer', 'different:to_account_id', $fromExists],
             'send_actual_amount'    => ['required', 'numeric', 'min:0'],
             'send_total_amount'     => ['required', 'numeric', 'min:0', 'gte:send_actual_amount'],
 
-            'to_account_id'         => ['required', 'integer', 'exists:accounts,id'],
+            'to_account_id'         => ['required', 'integer', $toExists],
             'receive_actual_amount' => ['required', 'numeric', 'min:0'],
             'receive_total_amount'  => ['required', 'numeric', 'min:0', 'gte:receive_actual_amount'],
 

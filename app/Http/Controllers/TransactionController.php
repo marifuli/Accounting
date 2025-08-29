@@ -338,59 +338,59 @@ class TransactionController extends Controller
      */
     public function edit(Transaction $transaction)
     {
-        dd($transaction);
+        // Normalize type to long form for the UI
+        $rawType = (string) $transaction->type;
+        $uiType  = match (strtolower($rawType)) {
+            'inc', 'income'  => 'income',
+            'exp', 'expense' => 'expense',
+            'ast', 'asset',  'asset' => 'asset',
+            default          => 'asset',
+        };
+
         $categories        = TransactionCategory::select('id', 'name')->orderBy('name')->get();
         $accounts          = Account::select('id', 'name', 'currency', 'current_balance')->orderBy('name')->get();
         $exp_inc_accounts  = ExpenseIncomeAccount::select('id', 'name', 'currency', 'current_balance')->orderBy('name')->get();
 
-        // eager-load fees
+        // Eager-load fees
         $transaction->load(['fees:id,transaction_id,name,amount,type']);
 
         $fees        = $transaction->fees;
         $source_fees = $fees->where('type', 'from')->values()->map(fn($f) => [
-            'name' => (string)$f->name,
+            'name'   => (string)$f->name,
             'amount' => (float)$f->amount,
         ])->all();
         $dest_fees   = $fees->where('type', 'to')->values()->map(fn($f) => [
-            'name' => (string)$f->name,
+            'name'   => (string)$f->name,
             'amount' => (float)$f->amount,
         ])->all();
 
-        // Normalize short codes to long strings for UI
-        $rawType = (string) $transaction->type;
-        $uiType  = match (strtolower($rawType)) {
-            'inc' => 'income',
-            'exp' => 'expense',
-            'ast' => 'asset',
-            default => $rawType, // assume already long ('income' | 'expense' | 'asset')
-        };
-
         return Inertia::render('transactions/Edit', [
             'transaction'      => [
-                'id'                     => $transaction->id,
-                'type'                   => $uiType, // UI consumes long strings
-                'name'                   => (string)$transaction->name,
-                'category_id'            => $transaction->category_id,
-                'from_account_id'        => $transaction->from_account_id,
-                'to_account_id'          => $transaction->to_account_id,
-                'description'            => $transaction->description,
-                'attachments'            => is_array($transaction->attachments) ? $transaction->attachments : [],
+                'id'                    => $transaction->id,
+                'type'                  => $uiType, // UI uses long strings
+                'name'                  => (string)$transaction->name,
+                'category_id'           => $transaction->category_id,
+                'from_account_id'       => $transaction->from_account_id,
+                'to_account_id'         => $transaction->to_account_id,
+                'description'           => $transaction->description,
+                'attachments'           => is_array($transaction->attachments) ? $transaction->attachments : [],
 
-                'send_total_amount'      => (float)$transaction->send_total_amount,
-                'send_actual_amount'     => (float)$transaction->send_actual_amount,
-                'receive_total_amount'   => (float)$transaction->receive_total_amount,
-                'receive_actual_amount'  => (float)$transaction->receive_actual_amount,
+                'send_total_amount'     => (float)$transaction->send_total_amount,
+                'send_actual_amount'    => (float)$transaction->send_actual_amount,
+                'receive_total_amount'  => (float)$transaction->receive_total_amount,
+                'receive_actual_amount' => (float)$transaction->receive_actual_amount,
 
-                'created_at'             => optional($transaction->created_at)->toIso8601String(),
-                'updated_at'             => optional($transaction->updated_at)->toIso8601String(),
+                'created_at'            => optional($transaction->created_at)->toIso8601String(),
+                'updated_at'            => optional($transaction->updated_at)->toIso8601String(),
             ],
             'source_fees'       => $source_fees,
             'dest_fees'         => $dest_fees,
             'categories'        => $categories,
-            'accounts'          => $accounts,
-            'exp_inc_accounts'  => $exp_inc_accounts,
+            'accounts'          => $accounts,          // Asset accounts
+            'exp_inc_accounts'  => $exp_inc_accounts,  // Expense/Income accounts
         ]);
     }
+
 
     /**
      * PUT/PATCH /transactions/{transaction}
@@ -403,7 +403,13 @@ class TransactionController extends Controller
     {
         $data = $request->validated();
 
-        // ---- Handle new attachments (merge with existing) ----
+        // Ensure directory exists for any new uploads
+        $disk = Storage::disk('public');
+        if (! $disk->exists('transactions')) {
+            $disk->makeDirectory('transactions');
+        }
+
+        // ---- New attachments (merge with existing) ----
         $newPaths = [];
         if ($request->hasFile('attachments')) {
             foreach ((array) $request->file('attachments') as $file) {
@@ -419,32 +425,29 @@ class TransactionController extends Controller
             unset($data['attachments']); // keep as-is
         }
 
-        // ---- Extract fees payloads ----
+        // ---- Extract fees from payload ----
         $sourceFees = $data['source_fees'] ?? [];
         $destFees   = $data['dest_fees'] ?? [];
         unset($data['source_fees'], $data['dest_fees']);
 
         // ---- Helpers ----
-        $toDec = static fn($v) => round((float)$v, 2);
-
-        // New totals from form
-        $newSendTotal    = $toDec($data['send_total_amount'] ?? 0);
+        $toDec           = static fn($v) => round((float)$v, 2);
+        $newSendTotal    = $toDec($data['send_total_amount']    ?? 0);
         $newReceiveTotal = $toDec($data['receive_total_amount'] ?? 0);
 
-        // Map type (accept old short codes; store back as long to be consistent with Create/Store)
-        $newTypeInput = (string)($data['type'] ?? 'asset');
-        $newTypeLong  = match (strtolower($newTypeInput)) {
-            'inc', 'income'  => 'income',
-            'exp', 'expense' => 'expense',
+        // Normalize NEW type to SHORT enum stored in DB (inc|exp|asset)
+        $newTypeShort = match (strtolower((string)($data['type'] ?? 'asset'))) {
+            'inc', 'income'  => 'inc',
+            'exp', 'expense' => 'exp',
             'ast', 'asset'   => 'asset',
             default          => 'asset',
         };
-        $data['type'] = $newTypeLong; // persist long form
+        $data['type'] = $newTypeShort;
 
-        // Previous state (for reversal) — also normalize if row had short code
-        $oldTypeLong     = match (strtolower((string)$transaction->type)) {
-            'inc', 'income'  => 'income',
-            'exp', 'expense' => 'expense',
+        // Previous state (normalize to short)
+        $oldTypeShort   = match (strtolower((string)$transaction->type)) {
+            'inc', 'income'  => 'inc',
+            'exp', 'expense' => 'exp',
             'ast', 'asset'   => 'asset',
             default          => 'asset',
         };
@@ -453,19 +456,20 @@ class TransactionController extends Controller
         $oldFromId       = $transaction->from_account_id;
         $oldToId         = $transaction->to_account_id;
 
-        $lock = static function (string $model, $id) {
-            return $model::query()->lockForUpdate()->findOrFail($id);
+        // Map type -> model classes for balance effects
+        $classesFor = static function (string $typeShort) {
+            // 'inc'   : From E/I -> To Asset
+            // 'exp'   : From Asset -> To E/I
+            // 'asset' : From Asset -> To Asset
+            return match ($typeShort) {
+                'inc'   => ['from' => ExpenseIncomeAccount::class, 'to' => Account::class],
+                'exp'   => ['from' => Account::class,            'to' => ExpenseIncomeAccount::class],
+                default => ['from' => Account::class,            'to' => Account::class],
+            };
         };
 
-        $classesFor = static function (string $typeLong) {
-            // income: From E/I -> To Asset
-            // expense: From Asset -> To E/I
-            // asset: From Asset -> To Asset
-            return match ($typeLong) {
-                'income'  => ['from' => ExpenseIncomeAccount::class, 'to' => Account::class],
-                'expense' => ['from' => Account::class, 'to' => ExpenseIncomeAccount::class],
-                default   => ['from' => Account::class, 'to' => Account::class],
-            };
+        $lock = static function (string $model, $id) {
+            return $model::query()->lockForUpdate()->findOrFail($id);
         };
 
         DB::transaction(function () use (
@@ -476,8 +480,8 @@ class TransactionController extends Controller
             $toDec,
             $newSendTotal,
             $newReceiveTotal,
-            $oldTypeLong,
-            $newTypeLong,
+            $oldTypeShort,
+            $newTypeShort,
             $oldSendTotal,
             $oldReceiveTotal,
             $oldFromId,
@@ -485,8 +489,8 @@ class TransactionController extends Controller
             $lock,
             $classesFor
         ) {
-            // 1) Reverse the previous balance effect
-            $oldClasses = $classesFor($oldTypeLong);
+            // 1) Reverse previous balances
+            $oldClasses = $classesFor($oldTypeShort);
             $prevSource = $lock($oldClasses['from'], $oldFromId);
             $prevDest   = $lock($oldClasses['to'],   $oldToId);
 
@@ -496,7 +500,7 @@ class TransactionController extends Controller
             $prevSource->save();
             $prevDest->save();
 
-            // 2) Update the transaction record (base fields)
+            // 2) Update base transaction fields
             $transaction->update($data);
 
             // 3) Replace fees
@@ -521,8 +525,8 @@ class TransactionController extends Controller
                 ]);
             }
 
-            // 4) Apply the new balance effect — OVERDRAFTS ALLOWED
-            $newClasses = $classesFor($newTypeLong);
+            // 4) Apply new balances (overdrafts allowed)
+            $newClasses = $classesFor($newTypeShort);
             $source = $lock($newClasses['from'], $transaction->from_account_id);
             $dest   = $lock($newClasses['to'],   $transaction->to_account_id);
 
