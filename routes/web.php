@@ -22,6 +22,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('transaction-categories', TransactionCategoryController::class);
     Route::resource('expense-income-accounts', ExpenseIncomeAccountController::class);
     Route::resource('upcomming-expense-income', UpcommingExpenseIncomeController::class);
+    // routes/web.php
+    Route::delete(
+        'upcomming-expense-income/{upcomming_expense_income}/attachments/{index}',
+        [UpcommingExpenseIncomeController::class, 'destroyAttachment']
+    )->name('upcomming-expense-income.attachments.destroy');
+
     Route::resource('transactions', TransactionController::class);
     // Route::prefix('transactions')->as('transactions.')->group(function () {
     //     // Resource-style routes
@@ -29,7 +35,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     //     Route::get('/create/income',    [TransactionController::class, 'create_income'])->name('create');
     //     Route::get('/create/expense',   [TransactionController::class, 'create_expense'])->name('create');
     //     Route::get('/create/asset',     [TransactionController::class, 'create_asset'])->name('create');
-      
+
     //     Route::post('/income/store',  [TransactionController::class, 'income_store'])->name('income.store');
     //     Route::post('/expense/store', [TransactionController::class, 'expense_store'])->name('expense.store');
     //     Route::post('/asset/store',   [TransactionController::class, 'asset_store'])->name('asset.store');

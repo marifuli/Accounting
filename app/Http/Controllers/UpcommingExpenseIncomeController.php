@@ -6,6 +6,7 @@ use App\Http\Requests\StoreUpcommingExpenseIncomeRequest;
 use App\Http\Requests\UpdateUpcommingExpenseIncomeRequest;
 use App\Models\ExpenseIncomeAccount;
 use App\Models\UpcommingExpenseIncome;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class UpcommingExpenseIncomeController extends Controller
@@ -35,18 +36,23 @@ class UpcommingExpenseIncomeController extends Controller
      */
     public function store(StoreUpcommingExpenseIncomeRequest $request)
     {
+        // Validated payload
         $data = $request->validated();
 
-        // Normalize FK (avoid empty string -> null)
+        // Normalize optional FK ('' → null)
         $data['eia_id'] = $request->filled('eia_id') ? (int) $request->input('eia_id') : null;
 
-        // ---- Save files directly here (no helper) ----
+        // Ensure target folder exists: storage/app/public/upcoming
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        if (! $disk->exists('upcoming')) {
+            $disk->makeDirectory('upcoming');
+        }
+
+        // Collect and store uploaded files
         $paths = [];
+        $files = $request->file('attachments', []);           // may be [] or UploadedFile[]
 
-        // May be an array (multiple) or a single UploadedFile depending on the client
-        $files = $request->file('attachments', []);
-
-        // Normalize to array
+        // Normalize to array in case a single file object is sent
         if ($files instanceof \Illuminate\Http\UploadedFile) {
             $files = [$files];
         }
@@ -54,13 +60,13 @@ class UpcommingExpenseIncomeController extends Controller
         if (is_array($files)) {
             foreach ($files as $file) {
                 if ($file && $file->isValid()) {
-                    // Store to storage/app/public/upcoming and return "upcoming/xxx.ext"
+                    // Stores to storage/app/public/upcoming and returns "upcoming/<hash>.<ext>"
                     $paths[] = $file->store('upcoming', 'public');
                 }
             }
         }
 
-        // Save paths as JSON array (your model casts attachments => array)
+        // Persist paths as JSON array (or null if none)
         $data['attachments'] = $paths ?: null;
 
         \App\Models\UpcommingExpenseIncome::create($data);
@@ -69,6 +75,7 @@ class UpcommingExpenseIncomeController extends Controller
             ->route('upcomming-expense-income.index')
             ->with('success', 'Upcoming income/expense created successfully.');
     }
+
 
 
     /**
@@ -82,18 +89,32 @@ class UpcommingExpenseIncomeController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
- public function edit(UpcommingExpenseIncome $upcomming_expense_income)
-{
-    // Provide accounts for the <select>
-    $expIncAccounts = ExpenseIncomeAccount::select('id', 'name')
-        ->orderBy('name')
-        ->get();
+    public function edit(UpcommingExpenseIncome $upcomming_expense_income)
+    {
+        // Normalize attachments to array for the UI
+        $attachments = is_array($upcomming_expense_income->attachments)
+            ? $upcomming_expense_income->attachments
+            : (empty($upcomming_expense_income->attachments) ? [] : (array) $upcomming_expense_income->attachments);
 
-    return Inertia::render('UpcommingExpInc/Edit', [
-        'upcomming_expense_income' => $upcomming_expense_income,
-        'expIncAccounts'           => $expIncAccounts,
-    ]);
-}
+        // Provide accounts for the <select>
+        $expIncAccounts = ExpenseIncomeAccount::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('UpcommingExpInc/Edit', [
+            'upcomming_expense_income' => [
+                'id'          => $upcomming_expense_income->id,
+                'title'       => $upcomming_expense_income->title,
+                'description' => $upcomming_expense_income->description,
+                'eia_id'      => $upcomming_expense_income->eia_id,
+                'date'        => $upcomming_expense_income->date?->toDateString() ?? $upcomming_expense_income->date,
+                'type'        => $upcomming_expense_income->type,
+                'attachments' => $attachments, // array of "upcoming/...."
+            ],
+            'expIncAccounts' => $expIncAccounts,
+        ]);
+    }
+
 
     /**
      * Update the specified resource in storage.
@@ -149,5 +170,26 @@ class UpcommingExpenseIncomeController extends Controller
         return redirect()
             ->route('upcomming-expense-income.index')
             ->with('success', 'Upcoming item deleted.');
+    }
+
+    public function destroyAttachment(UpcommingExpenseIncome $upcomming_expense_income, int $index)
+    {
+        $attachments = $upcomming_expense_income->attachments ?? [];
+
+        if (!is_array($attachments) || !isset($attachments[$index])) {
+            return back()->withErrors(['attachments' => 'Attachment not found.']);
+        }
+
+        $path = $attachments[$index];
+
+        // Delete from disk
+        \Storage::disk('public')->delete($path);
+
+        // Remove from DB array
+        unset($attachments[$index]);
+        $upcomming_expense_income->attachments = array_values($attachments);
+        $upcomming_expense_income->save();
+
+        return back()->with('success', 'Attachment deleted.');
     }
 }

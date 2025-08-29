@@ -30,7 +30,6 @@ function removeFile(idx: number) {
 }
 
 function submit() {
-    // Build multipart payload safely (don’t send empty eia_id)
     form.transform((data) => {
         const fd = new FormData();
 
@@ -39,13 +38,14 @@ function submit() {
         if (data.date) fd.append('date', data.date);
         fd.append('type', data.type);
 
-        // append FK only when selected
         if (data.eia_id !== null && data.eia_id !== '' && data.eia_id !== undefined) {
             fd.append('eia_id', String(data.eia_id));
         }
 
-        // files (optional)
-        (data.attachments as File[]).forEach((file) => fd.append('attachments[]', file));
+        // IMPORTANT: index the files for Laravel ("attachments.*")
+        (data.attachments as File[]).forEach((file, i) => {
+            fd.append(`attachments[${i}]`, file);
+        });
 
         return fd;
     }).post('/upcomming-expense-income', {

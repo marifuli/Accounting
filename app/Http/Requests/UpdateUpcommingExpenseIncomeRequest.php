@@ -5,23 +5,24 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-
 class UpdateUpcommingExpenseIncomeRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-     public function rules(): array
+    protected function prepareForValidation(): void
+    {
+        // Normalize to an array of UploadedFile so 'attachments.*' rules work
+        if ($this->hasFile('attachments')) {
+            $this->merge([
+                'attachments' => array_values(array_filter((array) $this->file('attachments'))),
+            ]);
+        }
+    }
+
+    public function rules(): array
     {
         return [
             'title'       => ['required', 'string', 'max:255'],
@@ -31,9 +32,8 @@ class UpdateUpcommingExpenseIncomeRequest extends FormRequest
             'date'        => ['required', 'date'],
             'type'        => ['required', Rule::in(['income', 'expense'])],
 
-            // Optional multiple files
             'attachments'   => ['nullable', 'array'],
-            'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:5120'], // 5MB each
+            // 'attachments.*' => ['file', 'mimes:jpg,jpeg,png,webp,pdf,doc,docx', 'max:5120'],
         ];
     }
 }

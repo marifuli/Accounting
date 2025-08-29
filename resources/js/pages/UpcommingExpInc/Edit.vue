@@ -1,4 +1,3 @@
-<!-- resources/js/Pages/UpcommingExpInc/Edit.vue -->
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
@@ -15,7 +14,6 @@ type UpItem = {
 
 type EIA = { id: number | string; name: string }
 
-// Props keys must match controller
 const props = defineProps<{
   upcomming_expense_income: UpItem
   expIncAccounts: EIA[]
@@ -26,15 +24,15 @@ const breadcrumbs = [
   { title: 'Edit' },
 ]
 
+const existing = (props.upcomming_expense_income.attachments ?? []) as string[]
+
 const form = useForm({
   title: props.upcomming_expense_income.title ?? '',
   description: (props.upcomming_expense_income.description ?? '') as string | null,
   eia_id: (props.upcomming_expense_income.eia_id ?? null) as number | string | null,
   date: props.upcomming_expense_income.date ?? '',
   type: (props.upcomming_expense_income.type ?? 'expense') as 'income' | 'expense',
-
-  // new files only; existing stay as-is unless backend lets you remove them
-  attachments: [] as File[],
+  attachments: [] as File[], // new files only
 })
 
 function onFilesChanged(e: Event) {
@@ -42,27 +40,40 @@ function onFilesChanged(e: Event) {
   if (!input.files) return
   form.attachments = Array.from(input.files)
 }
-
 function removeNewFile(idx: number) {
   form.attachments.splice(idx, 1)
 }
 
+function fileUrl(path: string) {
+  return `/storage/${String(path).replace(/^\/?storage\//, '')}`
+}
+function filename(path: string) {
+  const i = path.lastIndexOf('/')
+  return i >= 0 ? path.slice(i + 1) : path
+}
+
 function submit() {
-  // Send FormData and spoof PUT
   form
     .transform((data) => {
       const fd = new FormData()
       fd.append('title', data.title ?? '')
-      fd.append('description', data.description ?? '')
-      fd.append('eia_id', (data.eia_id ?? '').toString())
+      if (data.description !== null && data.description !== undefined) {
+        fd.append('description', data.description)
+      }
+      if (data.eia_id !== null && data.eia_id !== '' && data.eia_id !== undefined) {
+        fd.append('eia_id', String(data.eia_id))
+      } else {
+        fd.append('eia_id', '')
+      }
       fd.append('date', data.date ?? '')
       fd.append('type', data.type)
 
-      ;(data.attachments as File[]).forEach((file) => {
-        fd.append('attachments[]', file)
+      // IMPORTANT: index keys so Laravel validates attachments.*
+      ;(data.attachments as File[]).forEach((file, idx) => {
+        fd.append(`attachments[${idx}]`, file)
       })
 
-      fd.append('_method', 'put')
+      fd.append('_method', 'PUT')
       return fd
     })
     .post(route('upcomming-expense-income.update', props.upcomming_expense_income.id), {
@@ -162,6 +173,22 @@ function submit() {
           </div>
         </section>
 
+        <!-- Existing attachments (view only) -->
+        <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+          <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Existing Attachments</h2>
+          <div v-if="!existing.length" class="text-sm text-gray-500">—</div>
+          <ul v-else class="divide-y divide-gray-100 rounded-lg border border-gray-200 text-sm dark:divide-gray-800 dark:border-gray-800">
+            <li v-for="(p, i) in existing" :key="`${p}-${i}`" class="flex items-center justify-between px-3 py-2">
+              <span class="truncate">{{ filename(p) }}</span>
+              <a :href="fileUrl(p)" target="_blank" rel="noopener" class="rounded-md border px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800">
+                View
+              </a>
+            </li>
+          </ul>
+          <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Existing files remain attached.</p>
+        </section>
+
+        <!-- Add new attachments -->
         <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
           <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Add Attachments</h2>
           <div class="grid gap-3">
@@ -171,6 +198,7 @@ function submit() {
               @change="onFilesChanged"
               class="block w-full cursor-pointer rounded-lg border border-dashed border-gray-300 p-3 text-sm dark:border-gray-700"
             />
+
             <ul v-if="form.attachments.length" class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
               <li
                 v-for="(f, idx) in form.attachments"
@@ -178,22 +206,12 @@ function submit() {
                 class="flex items-center justify-between px-3 py-2 text-sm"
               >
                 <span class="truncate">{{ f.name }}</span>
-                <button
-                  type="button"
-                  class="rounded-md border px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"
-                  @click="removeNewFile(idx)"
-                >
-                  Remove
-                </button>
+                <button type="button" class="rounded-md border px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800" @click="removeNewFile(idx)">Remove</button>
               </li>
             </ul>
 
             <p v-if="form.errors['attachments']" class="mt-1 text-xs text-red-600">{{ form.errors['attachments'] }}</p>
             <p v-if="form.errors['attachments.*']" class="mt-1 text-xs text-red-600">{{ form.errors['attachments.*'] }}</p>
-
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              Existing files remain attached. New uploads will be added.
-            </p>
           </div>
         </section>
       </form>

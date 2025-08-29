@@ -5,22 +5,28 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-
 class StoreUpcommingExpenseIncomeRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * Make sure files are present on the "data" side for validation.
      */
+    protected function prepareForValidation(): void
+    {
+        if ($this->hasFile('attachments')) {
+            $this->merge([
+                'attachments' => array_values(
+                    array_filter((array) $this->file('attachments'))
+                ),
+            ]);
+        }
+    }
+
+
     public function rules(): array
     {
         return [
@@ -30,9 +36,9 @@ class StoreUpcommingExpenseIncomeRequest extends FormRequest
             'date'        => ['required', 'date'],
             'type'        => ['required', Rule::in(['income', 'expense'])],
 
-            // optional multiple files
+            // Files (multiple, optional)
             'attachments'   => ['nullable', 'array'],
-            'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:5120'],
+            // 'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:5120'],
         ];
     }
 }
