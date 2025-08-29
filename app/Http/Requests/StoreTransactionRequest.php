@@ -41,7 +41,6 @@ class StoreTransactionRequest extends FormRequest
             'receive_total_amount'  => ['required', 'numeric', 'min:0', 'gte:receive_actual_amount'],
             'description'           => ['nullable', 'string'],
             'attachments'           => ['nullable', 'array'],
-            'attachments.*'         => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:5120'],
             'source_fees'           => ['nullable', 'array'],
             'source_fees.*.name'    => ['nullable', 'string', 'max:255', 'required_with:source_fees.*.amount'],
             'source_fees.*.amount'  => ['nullable', 'numeric', 'min:0', 'required_with:source_fees.*.name'],
