@@ -305,9 +305,9 @@ async function copyResult() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-            <div class="grid gap-6 lg:grid-cols-2">
+            <div class="flex flex-col gap-6 lg:flex-row">
                 <!-- LEFT: FORM -->
-                <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+                <section class="rounded-xl border border-gray-200 p-4 dark:border-gray-800 flex-2">
                     <div class="mb-4 flex items-center justify-between">
                         <h1 class="text-xl font-semibold">New Transaction</h1>
                         <div class="flex gap-2">
@@ -671,11 +671,11 @@ async function copyResult() {
                 </section>
 
                 <!-- RIGHT: Calculator -->
-                <aside class="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+                <aside class="rounded-xl border border-gray-200 p-4 dark:border-gray-800 flex-1">
                     <h2 class="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Calculator</h2>
 
                     <!-- 70% scale wrapper -->
-                    <div style="transform: scale(0.7); transform-origin: top left; width: calc(100% / 0.7)">
+                    <div style="">
                         <div class="relative space-y-3">
                             <!-- Inline toast fallback (only shows if SweetAlert isn't available) -->
                             <transition name="fade">
