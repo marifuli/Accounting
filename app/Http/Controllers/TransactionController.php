@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Models\TransactionFee;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Http\UploadedFile;
 
 
 class TransactionController extends Controller
@@ -47,6 +48,12 @@ class TransactionController extends Controller
             $query->where('category_id', $request->input('category_id'));
         }
 
+        // 🔧 NEW: name contains search
+        if ($request->filled('name')) {
+            $q = trim($request->input('name'));
+            $query->where('name', 'like', "%{$q}%");
+        }
+
         // Amount range helpers
         $ranges = [
             'send_total_amount',
@@ -59,7 +66,6 @@ class TransactionController extends Controller
             $min = $num($request->input("{$col}_min"));
             $max = $num($request->input("{$col}_max"));
             if (!is_null($min) && !is_null($max)) {
-                // both present
                 $query->whereBetween($col, [$min, $max]);
             } elseif (!is_null($min)) {
                 $query->where($col, '>=', $min);
@@ -71,14 +77,15 @@ class TransactionController extends Controller
         $transactions = $query
             ->latest()
             ->paginate(15)
-            ->appends($request->query()); // keep filters in pagination links
+            ->appends($request->query());
 
         // Options for selects
         $accounts   = Account::select('id', 'name')->orderBy('name')->get();
         $categories = TransactionCategory::select('id', 'name')->orderBy('name')->get();
 
-        // Echo filters back to the page so v-models have initial values
+        // Echo filters back (🔧 include 'name')
         $filters = [
+            'name'                     => $request->input('name'), // 🔧
             'from_account_id'          => $request->input('from_account_id'),
             'to_account_id'            => $request->input('to_account_id'),
             'category_id'              => $request->input('category_id'),
@@ -111,19 +118,17 @@ class TransactionController extends Controller
         $asset_accounts = Account::select('id', 'name', 'currency', 'current_balance')
             ->orderBy('name')->get();
 
-
-
-        $exp_inc_accounts = ExpenseIncomeAccount::select('id', 'name', 'current_balance', 'currency')
+        // 👇 FIXED: add a comma between 'currency' and 'type'
+        $exp_inc_accounts = ExpenseIncomeAccount::select('id', 'name', 'current_balance', 'currency', 'type')
             ->orderBy('name')->get();
 
-
-        // resources/js/Pages/transactions/Create.vue
         return Inertia::render('transactions/Create', [
             'categories'        => $categories,
             'accounts'          => $asset_accounts,
-            'exp_inc_accounts'   => $exp_inc_accounts,
+            'exp_inc_accounts'  => $exp_inc_accounts,
         ]);
     }
+
 
     /**
      * POST /transactions
@@ -132,52 +137,59 @@ class TransactionController extends Controller
 
     public function store(StoreTransactionRequest $request)
     {
-        // dd($request->all());
+        // 1) Validate
         $data = $request->validated();
-        // dd($data);
-        // Ensure target folder exists (storage/app/public/transactions)
+
+        // 2) Ensure target folder exists (storage/app/public/transactions)
         $disk = Storage::disk('public');
         if (! $disk->exists('transactions')) {
             $disk->makeDirectory('transactions');
         }
 
-        // Save all uploaded files
+        // 3) Save all uploaded files (robust for 0/1/many)
         $paths = [];
-        if ($request->hasFile('attachments')) {
-            foreach ((array) $request->file('attachments') as $file) {
+        $files = $request->file('attachments', []); // null | UploadedFile | UploadedFile[]
+
+        if ($files instanceof UploadedFile) {
+            $files = [$files];
+        }
+
+        if (is_array($files)) {
+            foreach ($files as $file) {
                 if ($file && $file->isValid()) {
+                    // e.g., transactions/abcd1234.jpg
                     $paths[] = $file->store('transactions', 'public');
                 }
             }
         }
-        $data['attachments'] = $paths ?: null;
+        $data['attachments'] = $paths ?: null; // store JSON array or null (ensure model casts)
 
-        // Extract fees from payload
+        // 4) Extract & remove fees from main payload (they get separate rows)
         $sourceFees = $data['source_fees'] ?? [];
-        $destFees   = $data['dest_fees'] ?? [];
+        $destFees   = $data['dest_fees']   ?? [];
         unset($data['source_fees'], $data['dest_fees']);
 
-        // Normalize type to DB enum (inc|exp|asset)
-        $data['type'] = match (strtolower($data['type'] ?? 'asset')) {
+        // 5) Normalize type to DB enum (inc|exp|asset)
+        $data['type'] = match (strtolower((string)($data['type'] ?? 'asset'))) {
             'income', 'inc'  => 'inc',
             'expense', 'exp' => 'exp',
             default          => 'asset',
         };
 
-        // Helpers
-        $toDec        = static fn($v) => round((float) $v, 2);
-        $sendTotal    = $toDec($data['send_total_amount'] ?? 0);
+        // 6) Numeric helpers
+        $toDec = static fn($v) => round((float) $v, 2);
+        $sendTotal    = $toDec($data['send_total_amount']    ?? 0);
         $receiveTotal = $toDec($data['receive_total_amount'] ?? 0);
 
-        // Map short type -> models for balance updates
+        // 7) Map short type -> models for balance updates
         $classesFor = static function (string $typeShort) {
             // 'inc'   : From E/I -> To Asset
             // 'exp'   : From Asset -> To E/I
             // 'asset' : From Asset -> To Asset
             return match ($typeShort) {
-                'inc'   => ['from' => ExpenseIncomeAccount::class, 'to' => Account::class],
-                'exp'   => ['from' => Account::class,            'to' => ExpenseIncomeAccount::class],
-                default => ['from' => Account::class,            'to' => Account::class],
+                'inc'   => ['from' => \App\Models\ExpenseIncomeAccount::class, 'to' => \App\Models\Account::class],
+                'exp'   => ['from' => \App\Models\Account::class,              'to' => \App\Models\ExpenseIncomeAccount::class],
+                default => ['from' => \App\Models\Account::class,              'to' => \App\Models\Account::class],
             };
         };
 
@@ -185,15 +197,15 @@ class TransactionController extends Controller
             return $model::query()->lockForUpdate()->findOrFail($id);
         };
 
+        // 8) Create Transaction, Fees, and update balances atomically
         DB::transaction(function () use (&$data, $sourceFees, $destFees, $toDec, $sendTotal, $receiveTotal, $classesFor, $lock) {
-            // 1) Create transaction row
             /** @var \App\Models\Transaction $tx */
-            $tx = Transaction::create($data);
+            $tx = \App\Models\Transaction::create($data);
 
-            // 2) Persist fees
+            // Fees: persist rows if present
             foreach ($sourceFees as $f) {
                 if (!isset($f['name'], $f['amount'])) continue;
-                TransactionFee::create([
+                \App\Models\TransactionFee::create([
                     'transaction_id' => $tx->id,
                     'name'           => (string) $f['name'],
                     'amount'         => $toDec($f['amount']),
@@ -202,7 +214,7 @@ class TransactionController extends Controller
             }
             foreach ($destFees as $f) {
                 if (!isset($f['name'], $f['amount'])) continue;
-                TransactionFee::create([
+                \App\Models\TransactionFee::create([
                     'transaction_id' => $tx->id,
                     'name'           => (string) $f['name'],
                     'amount'         => $toDec($f['amount']),
@@ -210,7 +222,7 @@ class TransactionController extends Controller
                 ]);
             }
 
-            // 3) Balance updates (overdrafts allowed)
+            // Balance updates (overdrafts allowed)
             $classes = $classesFor($data['type']); // 'inc' | 'exp' | 'asset'
             $source  = $lock($classes['from'], $data['from_account_id']);
             $dest    = $lock($classes['to'],   $data['to_account_id']);
@@ -222,9 +234,10 @@ class TransactionController extends Controller
             $dest->save();
         });
 
+        // 9) Done
         return redirect()
             ->route('transactions.index')
-            ->with('success', 'Transaction created and balances updated (overdrafts allowed).');
+            ->with('success', 'Transaction created, files saved, and balances updated (overdrafts allowed).');
     }
 
 
@@ -627,5 +640,46 @@ class TransactionController extends Controller
         return redirect()
             ->route('transactions.index')
             ->with('success', 'Transaction reversed and deleted.');
+    }
+
+    public function destroyAttachment(Transaction $transaction, $index)
+    {
+        // Normalize & validate index
+        if (!is_numeric($index)) {
+            return back()->with('error', 'Invalid attachment index.');
+        }
+        $idx = (int) $index;
+
+        // Get current attachments as an array
+        $attachments = $transaction->attachments ?? [];
+        if (!is_array($attachments)) {
+            $attachments = (array) $attachments; // extra safety
+        }
+
+        if (!array_key_exists($idx, $attachments)) {
+            return back()->with('error', 'Attachment not found.');
+        }
+
+        // Path as stored in DB (we store "transactions/xxx.ext")
+        $storedPath = (string) $attachments[$idx];
+
+        // If someone stored a "/storage/..." path by mistake, normalize it
+        $relativePath = ltrim(preg_replace('#^/?storage/#', '', $storedPath), '/');
+
+        // Delete file from the public disk if present
+        $disk = Storage::disk('public');
+        if ($relativePath && $disk->exists($relativePath)) {
+            $disk->delete($relativePath);
+        }
+
+        // Remove from the array and reindex
+        unset($attachments[$idx]);
+        $attachments = array_values($attachments);
+
+        // Persist back (null if empty, for neatness)
+        $transaction->attachments = $attachments ?: null;
+        $transaction->save();
+
+        return back()->with('success', 'Attachment deleted.');
     }
 }
