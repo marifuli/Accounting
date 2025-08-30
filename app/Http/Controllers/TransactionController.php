@@ -363,7 +363,10 @@ class TransactionController extends Controller
 
         $categories        = TransactionCategory::select('id', 'name')->orderBy('name')->get();
         $accounts          = Account::select('id', 'name', 'currency', 'current_balance')->orderBy('name')->get();
-        $exp_inc_accounts  = ExpenseIncomeAccount::select('id', 'name', 'currency', 'current_balance')->orderBy('name')->get();
+
+        // ✅ include 'type' so FE can filter income-only / expense-only
+        $exp_inc_accounts  = ExpenseIncomeAccount::select('id', 'name', 'currency', 'current_balance', 'type')
+            ->orderBy('name')->get();
 
         // Eager-load fees
         $transaction->load(['fees:id,transaction_id,name,amount,type']);
@@ -401,7 +404,7 @@ class TransactionController extends Controller
             'dest_fees'         => $dest_fees,
             'categories'        => $categories,
             'accounts'          => $accounts,          // Asset accounts
-            'exp_inc_accounts'  => $exp_inc_accounts,  // Expense/Income accounts
+            'exp_inc_accounts'  => $exp_inc_accounts,  // Expense/Income accounts (with 'type')
         ]);
     }
 
@@ -425,46 +428,52 @@ class TransactionController extends Controller
 
         // ---- New attachments (merge with existing) ----
         $newPaths = [];
-        if ($request->hasFile('attachments')) {
-            foreach ((array) $request->file('attachments') as $file) {
+        $files = $request->file('attachments', []); // null | UploadedFile | UploadedFile[]
+
+        if ($files instanceof \Illuminate\Http\UploadedFile) {
+            $files = [$files];
+        }
+        if (is_array($files)) {
+            foreach ($files as $file) {
                 if ($file && $file->isValid()) {
-                    $newPaths[] = $file->store('transactions', 'public');
+                    $newPaths[] = $file->store('transactions', 'public'); // e.g. "transactions/abc123.pdf"
                 }
             }
         }
+
         if (!empty($newPaths)) {
             $existing = (array) ($transaction->attachments ?? []);
             $data['attachments'] = array_values(array_merge($existing, $newPaths));
         } else {
-            unset($data['attachments']); // keep as-is
+            unset($data['attachments']); // keep existing attachments as-is
         }
 
-        // ---- Extract fees from payload ----
+        // ---- Extract fees from payload (we'll re-insert) ----
         $sourceFees = $data['source_fees'] ?? [];
         $destFees   = $data['dest_fees'] ?? [];
         unset($data['source_fees'], $data['dest_fees']);
 
         // ---- Helpers ----
-        $toDec           = static fn($v) => round((float)$v, 2);
+        $toDec = static fn($v) => round((float) $v, 2);
+
+        // FE sets totals = actual - fees (can be negative if fees > actual)
         $newSendTotal    = $toDec($data['send_total_amount']    ?? 0);
         $newReceiveTotal = $toDec($data['receive_total_amount'] ?? 0);
 
         // Normalize NEW type to SHORT enum stored in DB (inc|exp|asset)
-        $newTypeShort = match (strtolower((string)($data['type'] ?? 'asset'))) {
-            'inc', 'income'  => 'inc',
-            'exp', 'expense' => 'exp',
-            'ast', 'asset'   => 'asset',
-            default          => 'asset',
+        $toShort = static function (string $t) {
+            return match (strtolower($t)) {
+                'inc', 'income'  => 'inc',
+                'exp', 'expense' => 'exp',
+                'ast', 'asset'   => 'asset',
+                default          => 'asset',
+            };
         };
-        $data['type'] = $newTypeShort;
+        $newTypeShort   = $toShort((string) ($data['type'] ?? 'asset'));
+        $data['type']   = $newTypeShort;
 
         // Previous state (normalize to short)
-        $oldTypeShort   = match (strtolower((string)$transaction->type)) {
-            'inc', 'income'  => 'inc',
-            'exp', 'expense' => 'exp',
-            'ast', 'asset'   => 'asset',
-            default          => 'asset',
-        };
+        $oldTypeShort   = $toShort((string) $transaction->type);
         $oldSendTotal    = $toDec($transaction->send_total_amount);
         $oldReceiveTotal = $toDec($transaction->receive_total_amount);
         $oldFromId       = $transaction->from_account_id;
@@ -477,8 +486,8 @@ class TransactionController extends Controller
             // 'asset' : From Asset -> To Asset
             return match ($typeShort) {
                 'inc'   => ['from' => ExpenseIncomeAccount::class, 'to' => Account::class],
-                'exp'   => ['from' => Account::class,            'to' => ExpenseIncomeAccount::class],
-                default => ['from' => Account::class,            'to' => Account::class],
+                'exp'   => ['from' => Account::class,               'to' => ExpenseIncomeAccount::class],
+                default => ['from' => Account::class,               'to' => Account::class],
             };
         };
 
@@ -488,7 +497,7 @@ class TransactionController extends Controller
 
         DB::transaction(function () use (
             $transaction,
-            $data,
+            &$data,
             $sourceFees,
             $destFees,
             $toDec,
@@ -503,7 +512,7 @@ class TransactionController extends Controller
             $lock,
             $classesFor
         ) {
-            // 1) Reverse previous balances
+            // 1) Reverse previous balances on the previously affected accounts
             $oldClasses = $classesFor($oldTypeShort);
             $prevSource = $lock($oldClasses['from'], $oldFromId);
             $prevDest   = $lock($oldClasses['to'],   $oldToId);
@@ -514,7 +523,7 @@ class TransactionController extends Controller
             $prevSource->save();
             $prevDest->save();
 
-            // 2) Update base transaction fields
+            // 2) Update base transaction fields (including from/to ids and type)
             $transaction->update($data);
 
             // 3) Replace fees
@@ -522,18 +531,20 @@ class TransactionController extends Controller
 
             foreach ($sourceFees as $f) {
                 if (!isset($f['name'], $f['amount'])) continue;
+                if ((string) $f['name'] === '' && (float) $f['amount'] == 0.0) continue;
                 TransactionFee::create([
                     'transaction_id' => $transaction->id,
-                    'name'           => (string)$f['name'],
+                    'name'           => (string) $f['name'],
                     'amount'         => $toDec($f['amount']),
                     'type'           => 'from',
                 ]);
             }
             foreach ($destFees as $f) {
                 if (!isset($f['name'], $f['amount'])) continue;
+                if ((string) $f['name'] === '' && (float) $f['amount'] == 0.0) continue;
                 TransactionFee::create([
                     'transaction_id' => $transaction->id,
-                    'name'           => (string)$f['name'],
+                    'name'           => (string) $f['name'],
                     'amount'         => $toDec($f['amount']),
                     'type'           => 'to',
                 ]);

@@ -12,9 +12,10 @@ class UpdateTransactionRequest extends FormRequest
         return true;
     }
 
+    // app/Http/Requests/UpdateTransactionRequest.php
+
     public function rules(): array
     {
-        // Accept both long and short codes
         $typeInput = strtolower((string) $this->input('type'));
         $typeLong  = match ($typeInput) {
             'inc', 'income'  => 'income',
@@ -23,10 +24,6 @@ class UpdateTransactionRequest extends FormRequest
             default          => 'asset',
         };
 
-        // Choose the proper table for each side based on type
-        // income : from E/I -> to Account
-        // expense: from Account -> to E/I
-        // asset  : from Account -> to Account
         $fromExists = $typeLong === 'income'
             ? Rule::exists('expense_income_accounts', 'id')
             : Rule::exists('accounts', 'id');
@@ -43,24 +40,25 @@ class UpdateTransactionRequest extends FormRequest
 
             'from_account_id'       => ['required', 'integer', 'different:to_account_id', $fromExists],
             'send_actual_amount'    => ['required', 'numeric', 'min:0'],
-            'send_total_amount'     => ['required', 'numeric', 'min:0', 'gte:send_actual_amount'],
+            // ✅ totals <= actual (fees subtract). Remove min:0 so negative totals are allowed if fees > actual.
+            'send_total_amount'     => ['required', 'numeric', 'lte:send_actual_amount'],
 
             'to_account_id'         => ['required', 'integer', $toExists],
             'receive_actual_amount' => ['required', 'numeric', 'min:0'],
-            'receive_total_amount'  => ['required', 'numeric', 'min:0', 'gte:receive_actual_amount'],
+            'receive_total_amount'  => ['required', 'numeric', 'lte:receive_actual_amount'],
 
             'description'           => ['nullable', 'string'],
 
             'attachments'           => ['nullable', 'array'],
             'attachments.*'         => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:5120'],
 
-            'source_fees'              => ['nullable', 'array'],
-            'source_fees.*.name'       => ['nullable', 'string', 'max:255', 'required_with:source_fees.*.amount'],
-            'source_fees.*.amount'     => ['nullable', 'numeric', 'min:0', 'required_with:source_fees.*.name'],
+            'source_fees'           => ['nullable', 'array'],
+            'source_fees.*.name'    => ['nullable', 'string', 'max:255', 'required_with:source_fees.*.amount'],
+            'source_fees.*.amount'  => ['nullable', 'numeric', 'min:0', 'required_with:source_fees.*.name'],
 
-            'dest_fees'                => ['nullable', 'array'],
-            'dest_fees.*.name'         => ['nullable', 'string', 'max:255', 'required_with:dest_fees.*.amount'],
-            'dest_fees.*.amount'       => ['nullable', 'numeric', 'min:0', 'required_with:dest_fees.*.name'],
+            'dest_fees'             => ['nullable', 'array'],
+            'dest_fees.*.name'      => ['nullable', 'string', 'max:255', 'required_with:dest_fees.*.amount'],
+            'dest_fees.*.amount'    => ['nullable', 'numeric', 'min:0', 'required_with:dest_fees.*.name'],
         ];
     }
 }
