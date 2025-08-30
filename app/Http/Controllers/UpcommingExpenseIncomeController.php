@@ -9,17 +9,85 @@ use App\Models\UpcommingExpenseIncome;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Illuminate\Support\Carbon;
 
 class UpcommingExpenseIncomeController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $upcommingExpIncs = UpcommingExpenseIncome::paginate(15);
+        $query = UpcommingExpenseIncome::query();
 
-        return Inertia::render('UpcommingExpInc/Index', compact('upcommingExpIncs'));
+        // ---- Filters ----
+        // Title/description search
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Type (income|expense)
+        if (in_array($request->input('type'), ['income', 'expense'], true)) {
+            $query->where('type', $request->input('type'));
+        }
+
+        // Linked account
+        if ($request->filled('eia_id')) {
+            $query->where('eia_id', (int) $request->input('eia_id'));
+        }
+
+        // Date range (inclusive)
+        $dateFrom = $request->input('date_from');
+        $dateTo   = $request->input('date_to');
+
+        if ($dateFrom && $dateTo) {
+            try {
+                $from = Carbon::parse($dateFrom)->startOfDay()->toDateString();
+                $to   = Carbon::parse($dateTo)->endOfDay()->toDateString();
+                $query->whereBetween('date', [$from, $to]);
+            } catch (\Throwable $e) { /* ignore parse errors */
+            }
+        } elseif ($dateFrom) {
+            try {
+                $from = Carbon::parse($dateFrom)->startOfDay()->toDateString();
+                $query->whereDate('date', '>=', $from);
+            } catch (\Throwable $e) { /* ignore */
+            }
+        } elseif ($dateTo) {
+            try {
+                $to = Carbon::parse($dateTo)->endOfDay()->toDateString();
+                $query->whereDate('date', '<=', $to);
+            } catch (\Throwable $e) { /* ignore */
+            }
+        }
+
+        $upcommingExpIncs = $query
+            ->latest()
+            ->paginate(15)
+            ->appends($request->query());
+
+        // Options for "Linked Account" filter
+        $accounts = ExpenseIncomeAccount::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $filters = [
+            'search'   => $request->input('search'),
+            'type'     => $request->input('type'),
+            'eia_id'   => $request->input('eia_id'),
+            'date_from' => $request->input('date_from'),
+            'date_to'  => $request->input('date_to'),
+        ];
+
+        return Inertia::render('UpcommingExpInc/Index', [
+            'upcommingExpIncs' => $upcommingExpIncs,
+            'filters'          => $filters,
+            'accounts'         => $accounts, // for filter dropdown + name lookup
+        ]);
     }
 
     /**
