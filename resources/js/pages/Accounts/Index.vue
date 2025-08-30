@@ -68,25 +68,15 @@ function fmtMoney(amount?: string | number | null, currency?: string | null) {
   const formatted = n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return `${code} ${formatted}`
 }
+
+// ---- Index start for pagination-aware numbering
+const rowStart = computed(() => Number(props.accounts.from ?? 1))
 </script>
 
 <template>
   <Head title="Accounts" />
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-      <!-- Hero placeholders -->
-      <!-- <div class="grid auto-rows-min gap-4 md:grid-cols-3">
-        <div class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-          <PlaceholderPattern />
-        </div>
-        <div class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-          <PlaceholderPattern />
-        </div>
-        <div class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-          <PlaceholderPattern />
-        </div>
-      </div> -->
-
       <div class="relative min-h-[100vh] flex-1 rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
         <div class="h-full w-full p-4">
           <!-- Flash messages -->
@@ -126,6 +116,7 @@ function fmtMoney(amount?: string | number | null, currency?: string | null) {
             <table class="min-w-full text-left text-sm">
               <thead class="bg-gray-50 text-gray-700 dark:bg-gray-900/60 dark:text-gray-200">
                 <tr>
+                  <th class="w-14 px-4 py-3">#</th>
                   <th class="px-4 py-3">Name</th>
                   <th class="px-4 py-3">Code</th>
                   <th class="px-4 py-3">Type</th>
@@ -138,14 +129,19 @@ function fmtMoney(amount?: string | number | null, currency?: string | null) {
               </thead>
               <tbody>
                 <tr v-if="!props.accounts?.data?.length">
-                  <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No accounts found.</td>
+                  <td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No accounts found.</td>
                 </tr>
 
                 <tr
-                  v-for="row in props.accounts.data"
+                  v-for="(row, i) in props.accounts.data"
                   :key="row.id"
                   class="border-t border-gray-100 hover:bg-gray-50/60 dark:border-gray-800 dark:hover:bg-gray-900/40"
                 >
+                  <!-- Index -->
+                  <td class="px-4 py-3 tabular-nums text-gray-500">
+                    {{ rowStart + i }}
+                  </td>
+
                   <td class="px-4 py-3 font-medium">
                     <div class="flex flex-col">
                       <span>{{ row.name }}</span>
