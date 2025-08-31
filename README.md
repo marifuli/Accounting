@@ -1,7 +1,5 @@
 
 TODO: 
-7. delete confirmation use an sween alert for delete
-9. vue select / select 2
 13. “d F, Y h:i A” use this date formate everywhere
 15. add index number to every table
 16. https://hc200ok.github.io/vue3-easy-data-table-doc/features/server-side-paginate-and-sort.html for sorting use this

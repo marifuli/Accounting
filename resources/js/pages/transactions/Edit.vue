@@ -115,8 +115,8 @@ const destBalance = computed(() => selectedDest.value?.current_balance ?? null);
 const sourceIsDepleted = computed(() => isDepleted(selectedSource.value));
 
 /** ---------- Fees (editable) ---------- */
-const sourceFees = reactive<FeeRow[]>(props.source_fees?.length ? [...props.source_fees] : [{ name: '', amount: '' }]);
-const destFees = reactive<FeeRow[]>(props.dest_fees?.length ? [...props.dest_fees] : [{ name: '', amount: '' }]);
+const sourceFees = reactive<FeeRow[]>(props.source_fees?.length ? [...props.source_fees] : []);
+const destFees = reactive<FeeRow[]>(props.dest_fees?.length ? [...props.dest_fees] : []);
 
 function addSourceFee() { sourceFees.push({ name: '', amount: '' }); }
 function addDestFee() { destFees.push({ name: '', amount: '' }); }

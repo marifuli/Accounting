@@ -2,14 +2,10 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { formatDate } from '@/lib/utils';
 
 /** ---------- Types you’ll pass from the controller ---------- */
-type MiniAccount = {
-    id: number | string;
-    name: string;
-    currency: string | null; // e.g. "USD"
-    current_balance: number | string | null;
-};
+type MiniAccount = any;
 
 type Fee = { name: string; amount: number | string };
 
@@ -62,10 +58,10 @@ const isExpense = computed(() => props.transaction.type === 'expense' || props.t
 
 /** Decide which records to present based on type */
 const source = computed<MiniAccount | null>(() => {
-    return isIncome.value ? props.transaction.from_ei_account : props.transaction.from_account;
+    return props.transaction.from_account;
 });
 const destination = computed<MiniAccount | null>(() => {
-    return isExpense.value ? props.transaction.to_ei_account : props.transaction.to_account;
+    return props.transaction.to_account;
 });
 
 const sourceCurrency = computed(() => source.value?.currency ?? '—');
@@ -79,10 +75,7 @@ const destFeesTotal = computed(() => (props.transaction.dest_fees ?? []).reduce(
 
 function fmtDate(iso?: string | null) {
     if (!iso) return '—';
-    const d = new Date(iso);
-    return isNaN(d.getTime())
-        ? iso
-        : d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return formatDate((iso));
 }
 
 function fileUrl(path: string) {

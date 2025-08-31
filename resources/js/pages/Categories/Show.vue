@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
+import { formatDate } from '@/lib/utils'
 
 type TransactionCategory = {
   id: number | string
@@ -28,12 +29,7 @@ function destroy() {
 
 function fmtDate(iso?: string | null) {
   if (!iso) return '—'
-  const d = new Date(iso)
-  return isNaN(d.getTime())
-    ? iso
-    : d.toLocaleString(undefined, {
-        year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit'
-      })
+  return formatDate((iso))
 }
 </script>
 

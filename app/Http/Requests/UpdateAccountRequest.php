@@ -57,7 +57,7 @@ class UpdateAccountRequest extends FormRequest
     public function withValidator($validator)
     {
         // make card_type required for card accounts
-        $validator->sometimes(['card_type'], 'required', fn () => $this->input('type') === 'card');
+        // $validator->sometimes(['card_type'], 'required', fn () => $this->input('type') === 'card');
     }
 
     protected function prepareForValidation(): void

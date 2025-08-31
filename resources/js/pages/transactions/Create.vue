@@ -96,8 +96,8 @@ const sourceIsDepleted = computed(() => isDepleted(selectedSource.value));
 
 /** ---------- Fees (dynamic) ---------- */
 type FeeRow = { name: string; amount: number | string };
-const sourceFees = reactive<FeeRow[]>([{ name: '', amount: '' }]);
-const destFees = reactive<FeeRow[]>([{ name: '', amount: '' }]);
+const sourceFees = reactive<FeeRow[]>([]);
+const destFees = reactive<FeeRow[]>([]);
 
 function addSourceFee() {
     sourceFees.push({ name: '', amount: '' });

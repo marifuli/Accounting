@@ -2,6 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
+import { formatDate } from '@/lib/utils'
 
 type Account = {
   id: number | string
@@ -47,10 +48,7 @@ const breadcrumbs = [
 
 function fmtDate(iso?: string | null) {
   if (!iso) return '—'
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })
+  return formatDate((iso))
 }
 
 function destroy() {

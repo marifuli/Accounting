@@ -27,8 +27,6 @@ class TransactionController extends Controller
         // Build the base query + eager loads
         $query = Transaction::with([
             'category:id,name',
-            'fromAccount:id,name',
-            'toAccount:id,name',
         ]);
 
         // Simple helper to coerce numeric inputs safely
@@ -254,26 +252,9 @@ class TransactionController extends Controller
 
         // Resolve endpoints by type
         $fromAccount   = null;
-        $fromEiAccount = null;
         $toAccount     = null;
-        $toEiAccount   = null;
-
-        if ($transaction->type === 'income') {
-            $fromEiAccount = ExpenseIncomeAccount::select('id', 'name', 'currency', 'current_balance')
-                ->find($transaction->from_account_id);
-            $toAccount = Account::select('id', 'name', 'currency', 'current_balance')
-                ->find($transaction->to_account_id);
-        } elseif ($transaction->type === 'expense') {
-            $fromAccount = Account::select('id', 'name', 'currency', 'current_balance')
-                ->find($transaction->from_account_id);
-            $toEiAccount = ExpenseIncomeAccount::select('id', 'name', 'currency', 'current_balance')
-                ->find($transaction->to_account_id);
-        } else { // 'asset'
-            $fromAccount = Account::select('id', 'name', 'currency', 'current_balance')
-                ->find($transaction->from_account_id);
-            $toAccount = Account::select('id', 'name', 'currency', 'current_balance')
-                ->find($transaction->to_account_id);
-        }
+        $fromAccount = $transaction->from_account;
+        $toAccount = $transaction->to_account;
 
         // Split fees
         $fees = TransactionFee::select('name', 'amount', 'type')
@@ -305,25 +286,11 @@ class TransactionController extends Controller
                     'current_balance' => (float)$fromAccount->current_balance,
                 ] : null,
 
-                'from_ei_account' => $fromEiAccount ? [
-                    'id' => $fromEiAccount->id,
-                    'name' => $fromEiAccount->name,
-                    'currency' => $fromEiAccount->currency,
-                    'current_balance' => (float)$fromEiAccount->current_balance,
-                ] : null,
-
                 'to_account' => $toAccount ? [
                     'id' => $toAccount->id,
                     'name' => $toAccount->name,
                     'currency' => $toAccount->currency,
                     'current_balance' => (float)$toAccount->current_balance,
-                ] : null,
-
-                'to_ei_account' => $toEiAccount ? [
-                    'id' => $toEiAccount->id,
-                    'name' => $toEiAccount->name,
-                    'currency' => $toEiAccount->currency,
-                    'current_balance' => (float)$toEiAccount->current_balance,
                 ] : null,
 
                 'send_actual_amount'    => (float)$transaction->send_actual_amount,

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -25,7 +26,7 @@ class Transaction extends Model
         'receive_total_amount',
         'receive_actual_amount',
     ];
-
+    protected $appends = ['from_account', 'to_account'];
     /**
      * Casts for JSON + decimals.
      */
@@ -45,14 +46,22 @@ class Transaction extends Model
         return $this->belongsTo(TransactionCategory::class);
     }
 
-    public function fromAccount()
+    public function getFromAccountAttribute()
     {
-        return $this->belongsTo(Account::class, 'from_account_id');
+        if($this->type === 'inc') {
+            return ExpenseIncomeAccount::find($this->from_account_id);
+        }
+        return Account::find($this->from_account_id);
+        // return $this->belongsTo(Account::class, 'from_account_id');
     }
 
-    public function toAccount()
+    public function getToAccountAttribute()
     {
-        return $this->belongsTo(Account::class, 'to_account_id');
+        if($this->type === 'exp') {
+            return ExpenseIncomeAccount::find($this->to_account_id);
+        }
+        return Account::find($this->to_account_id);
+        // return $this->belongsTo(Account::class, 'to_account_id');
     }
 
     public function fees()

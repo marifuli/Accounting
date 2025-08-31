@@ -97,7 +97,7 @@ const rowStart = computed(() => Number(props.expenseIncomeAccounts.from ?? 1));
 
                   <td class="px-4 py-3 font-medium">{{ row.name }}</td>
                   <td class="px-4 py-3 font-medium">{{ (row.type ?? '').toString().toUpperCase() || '—' }}</td>
-                  <td class="px-4 py-3 font-medium">{{ row.current_balance }}</td>
+                  <td class="px-4 py-3 font-medium">{{ Math.abs(Number(row.current_balance)) }}</td>
                   <td class="px-4 py-3 font-medium">{{ row.currency }}</td>
                   <td class="px-4 py-3">
                     <span class="line-clamp-2 text-gray-700 dark:text-gray-300">

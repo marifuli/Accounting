@@ -7,7 +7,7 @@ use App\Http\Requests\UpdateAccountRequest;
 use App\Models\Account;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\Transaction; 
+use App\Models\Transaction;
 use Illuminate\Http\RedirectResponse;
 
 
@@ -36,7 +36,7 @@ class AccountController extends Controller
     public function store(StoreAccountRequest $request)
     {
         $data = $request->validated();
-
+        // dd(request()->all(), $data);
         // Ensure balances are set sensibly
         $data['opening_balance']  = $data['opening_balance']  ?? 0;
         $data['current_balance']  = $data['current_balance']  ?? $data['opening_balance'];

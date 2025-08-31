@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
+import { formatDate } from '@/lib/utils'
 
 type Category = { id: number | string; name: string }
 type ExpenseIncomeAccount = {
@@ -24,10 +25,7 @@ const breadcrumbs = [
 
 function fmtDate(iso?: string | null) {
   if (!iso) return '—'
-  const d = new Date(iso)
-  return isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })
+  return formatDate((iso))
 }
 
 function destroyItem() {
