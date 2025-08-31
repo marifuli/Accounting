@@ -3,6 +3,12 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, reactive } from 'vue'
 import VueSelect from "vue3-select-component";
+import DataTable from 'datatables.net-vue3'
+import DataTablesLib from 'datatables.net';
+import DataTablesCore from 'datatables.net';
+
+DataTable.use(DataTablesCore);
+DataTable.use(DataTablesLib);
 
 type UpItem = {
   id: number | string
@@ -59,7 +65,7 @@ function fmtMoney(amount?: string | number | null, currency?: string | null) {
   if (Number.isNaN(n)) return String(amount)
   const code = (currency ?? 'BDT').toUpperCase()
   const formatted = n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return `${code} ${formatted}`
+  return `${code}&nbsp;${formatted}`
 }
 
 function destroy(row: { id: number | string; title?: string }) {
@@ -212,7 +218,7 @@ function linkedName(eia_id?: number | string | null) {
 
           <!-- Table -->
           <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
-            <table class="min-w-full text-left text-sm">
+            <DataTable class="min-w-full text-left text-sm" :options="{ paging: false, searching: false, info: false }">
               <thead class="bg-gray-50 text-gray-700 dark:bg-gray-900/60 dark:text-gray-200">
                 <tr>
                   <th class="w-14 px-4 py-3">#</th>
@@ -227,9 +233,9 @@ function linkedName(eia_id?: number | string | null) {
               </thead>
 
               <tbody>
-                <tr v-if="!props.upcommingExpIncs?.data?.length">
+                <!-- <tr v-if="!props.upcommingExpIncs?.data?.length">
                   <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No upcoming items found.</td>
-                </tr>
+                </tr> -->
 
                 <tr
                   v-for="(row, i) in props.upcommingExpIncs.data"
@@ -265,7 +271,7 @@ function linkedName(eia_id?: number | string | null) {
                     </span>
                   </td>
 
-                  <td class="px-4 py-3 text-right tabular-nums">{{ fmtMoney(row.amount, row.currency) }}</td>
+                  <td class="px-4 py-3 text-right tabular-nums" v-html="fmtMoney(row.amount, row.currency)"></td>
                   <td class="px-4 py-3">{{ linkedName(row.eia_id) }}</td>
 
                   <td class="px-4 py-3">
@@ -323,7 +329,7 @@ function linkedName(eia_id?: number | string | null) {
                   </td>
                 </tr>
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           <!-- Pagination -->

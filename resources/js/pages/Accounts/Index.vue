@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
-
 import AppLayout from '@/layouts/AppLayout.vue'
+import DataTable from 'datatables.net-vue3'
+import DataTablesLib from 'datatables.net';
+import DataTablesCore from 'datatables.net';
+
+DataTable.use(DataTablesCore);
+DataTable.use(DataTablesLib);
 
 // ---- Types
 type Account = {
@@ -113,7 +118,7 @@ const rowStart = computed(() => Number(props.accounts.from ?? 1))
 
           <!-- Table -->
           <div class="overflow-x-auto rounded-xl">
-            <table class="min-w-full text-left text-sm">
+            <DataTable class="min-w-full text-left text-sm display" :options="{ paging: false, searching: false, info: false }">
               <thead class="bg-gray-50 text-gray-700 dark:bg-gray-900/60 dark:text-gray-200">
                 <tr>
                   <th class="w-14 px-4 py-3">#</th>
@@ -224,7 +229,7 @@ const rowStart = computed(() => Number(props.accounts.from ?? 1))
                   </td>
                 </tr>
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           <!-- Pagination -->

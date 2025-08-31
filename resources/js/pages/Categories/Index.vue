@@ -2,6 +2,12 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import DataTable from 'datatables.net-vue3'
+import DataTablesLib from 'datatables.net';
+import DataTablesCore from 'datatables.net';
+
+DataTable.use(DataTablesCore);
+DataTable.use(DataTablesLib);
 
 type TransactionCategory = {
   id: number | string;
@@ -63,7 +69,7 @@ const rowStart = computed(() => Number(props.transactionCategories.from ?? 1));
 
           <!-- Table -->
           <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
-            <table class="min-w-full text-left text-sm">
+            <DataTable class="min-w-full text-left text-sm" :options="{ paging: false, searching: false, info: false }">
               <thead class="bg-gray-50 text-gray-700 dark:bg-gray-900/60 dark:text-gray-200">
                 <tr>
                   <th class="w-14 px-4 py-3">#</th>
@@ -175,7 +181,7 @@ const rowStart = computed(() => Number(props.transactionCategories.from ?? 1));
                   </td>
                 </tr>
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           <!-- Pagination -->

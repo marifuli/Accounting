@@ -32,6 +32,10 @@
         "@vueuse/core": "^12.8.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "datatables.net": "^2.3.3",
+        "datatables.net-select-bs": "^3.1.0",
+        "datatables.net-select-bs5": "^3.1.0",
+        "datatables.net-vue3": "^3.0.4",
         "laravel-vite-plugin": "^2.0.0",
         "lucide-vue-next": "^0.468.0",
         "reka-ui": "^2.2.0",
@@ -40,6 +44,7 @@
         "tw-animate-css": "^1.2.5",
         "vue": "^3.5.13",
         "vue3-select-component": "^0.11.8",
+        "vuejs-smart-table": "^1.0.0-beta.6",
         "ziggy-js": "^2.4.2"
     },
     "optionalDependencies": {
