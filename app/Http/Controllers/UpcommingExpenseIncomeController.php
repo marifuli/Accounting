@@ -67,7 +67,7 @@ class UpcommingExpenseIncomeController extends Controller
 
         $upcommingExpIncs = $query
             ->latest()
-            ->paginate(15)
+            ->paginate(100000)
             ->appends($request->query());
 
         // Options for "Linked Account" filter

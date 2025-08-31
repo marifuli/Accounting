@@ -15,7 +15,7 @@ class TransactionCategoryController extends Controller
      */
    public function index(Request $request)
     {
-        $transactionCategories = TransactionCategory::orderBy('name', 'asc')->paginate(15);
+        $transactionCategories = TransactionCategory::orderBy('name', 'asc')->paginate(100000);
         return Inertia::render('Categories/Index', compact('transactionCategories'));
     }
 

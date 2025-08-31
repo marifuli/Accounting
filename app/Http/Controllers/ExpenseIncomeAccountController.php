@@ -16,7 +16,7 @@ class ExpenseIncomeAccountController extends Controller
      */
     public function index(Request $request)
     {
-        $expenseIncomeAccounts = ExpenseIncomeAccount::latest()->paginate(15);
+        $expenseIncomeAccounts = ExpenseIncomeAccount::latest()->paginate(100000);
 
         // IMPORTANT: this key MUST match your defineProps key 1:1
         return Inertia::render('ExpenseIncomeAccounts/Index', [

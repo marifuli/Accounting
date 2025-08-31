@@ -18,7 +18,7 @@ class AccountController extends Controller
      */
     public function index(Request $request)
     {
-        $accounts = Account::paginate(10);
+        $accounts = Account::paginate(100000);
         return Inertia::render('Accounts/Index', compact('accounts'));
     }
 
