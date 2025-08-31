@@ -14,10 +14,10 @@ class TransactionCategoryController extends Controller
      * Display a listing of the resource.
      */
    public function index(Request $request)
-{
-    $transactionCategories = TransactionCategory::paginate(15);
-    return Inertia::render('Categories/Index', compact('transactionCategories'));
-}
+    {
+        $transactionCategories = TransactionCategory::orderBy('name', 'asc')->paginate(15);
+        return Inertia::render('Categories/Index', compact('transactionCategories'));
+    }
 
 
     /**
