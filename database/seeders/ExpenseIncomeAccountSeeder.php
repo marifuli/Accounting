@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\TransactionCategory;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -45,12 +46,14 @@ class ExpenseIncomeAccountSeeder extends Seeder
             \App\Models\ExpenseIncomeAccount::create([
                 'name' => $category,
                 'type' => 'income',
+                'transaction_category_id' => TransactionCategory::firstOrCreate(['name' => explode(' ', $category, 2)[1], 'description' => 'income'])->id,
             ]);
         }
         foreach ($expenseCategories as $category) {
             \App\Models\ExpenseIncomeAccount::create([
                 'name' => $category,
                 'type' => 'expense',
+                'transaction_category_id' => TransactionCategory::firstOrCreate(['name' => explode(' ', $category, 2)[1], 'description' => 'expense'])->id,
             ]);
         }
     }
