@@ -2,6 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
+import VueSelect from "vue3-select-component";
 
 /** ---------- Types from controller payload ---------- */
 type AccountWithBal = {
@@ -336,11 +337,13 @@ async function copyResult() {
                         <!-- Type -->
                         <div>
                             <label class="mb-1 block text-sm font-medium">Transaction Type <span class="text-red-500">*</span></label>
-                            <select v-model="txType" class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700">
-                                <option value="income">Income (E/I ➜ Asset)</option>
-                                <option value="expense">Expense (Asset ➜ E/I)</option>
-                                <option value="asset">Asset (Asset ➜ Asset)</option>
-                            </select>
+                            <VueSelect v-model="txType" class="w-full"
+                                :options="[
+                                  {label: 'Income (E/I ➜ Asset)', value: 'income'},
+                                  {label: 'Expense (Asset ➜ E/I)', value: 'expense'},
+                                  {label: 'Asset (Asset ➜ Asset)', value: 'asset'},
+                                ]"
+                            />
                             <p v-if="form.errors.type" class="mt-1 text-xs text-red-600">{{ form.errors.type }}</p>
                             <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">Overdrafts are permitted. Balances may go negative.</p>
                         </div>
@@ -361,14 +364,12 @@ async function copyResult() {
 
                             <div>
                                 <label class="mb-1 block text-sm font-medium">Category <span class="text-red-500">*</span></label>
-                                <select
+                                <VueSelect
                                     v-model="form.category_id"
-                                    class="w-full rounded-lg border px-3 py-2"
+                                    class="w-full"
                                     :class="form.errors.category_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
-                                >
-                                    <option :value="null">— Select —</option>
-                                    <option v-for="c in props.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                </select>
+                                    :options="props.categories.map(c => ({label: c.name, value: c.id}))"
+                                />
                                 <p v-if="form.errors.category_id" class="mt-1 text-xs text-red-600">{{ form.errors.category_id }}</p>
                             </div>
                         </div>
@@ -380,16 +381,12 @@ async function copyResult() {
                             <div class="grid gap-3 md:grid-cols-2">
                                 <div>
                                     <label class="mb-1 block text-sm font-medium">Source Account <span class="text-red-500">*</span></label>
-                                    <select
+                                    <VueSelect
                                         v-model="form.from_account_id"
-                                        class="w-full rounded-lg border px-3 py-2"
+                                        class="w-full"
                                         :class="form.errors.from_account_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
-                                    >
-                                        <option :value="null">— Select Account —</option>
-                                        <option v-for="a in sourceOptions" :key="a.id" :value="a.id">
-                                            {{ a.name }}
-                                        </option>
-                                    </select>
+                                        :options="sourceOptions.map(a => ({label: a.name, value: a.id}))"
+                                    />
                                     <p v-if="form.errors.from_account_id" class="mt-1 text-xs text-red-600">{{ form.errors.from_account_id }}</p>
 
                                     <div class="mt-2 flex items-center gap-2 text-xs">
@@ -513,14 +510,12 @@ async function copyResult() {
                             <div class="grid gap-3 md:grid-cols-2">
                                 <div>
                                     <label class="mb-1 block text-sm font-medium">Destination Account <span class="text-red-500">*</span></label>
-                                    <select
+                                    <VueSelect
                                         v-model="form.to_account_id"
-                                        class="w-full rounded-lg border px-3 py-2"
+                                        class="w-full"
                                         :class="form.errors.to_account_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
-                                    >
-                                        <option :value="null">— Select Account —</option>
-                                        <option v-for="a in destOptions" :key="a.id" :value="a.id">{{ a.name }}</option>
-                                    </select>
+                                        :options="destOptions.map(a => ({label: a.name, value: a.id}))"
+                                    />
                                     <p v-if="form.errors.to_account_id" class="mt-1 text-xs text-red-600">{{ form.errors.to_account_id }}</p>
 
                                     <div class="mt-2 flex items-center gap-2 text-xs">

@@ -2,6 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, reactive, ref, watch } from 'vue';
+import VueSelect from "vue3-select-component";
 
 /** ---------- Types from controller payload ---------- */
 type AccountWithBal = {
@@ -254,12 +255,14 @@ async function copyResult() {
                         <div>
                             <label class="mb-1 block text-sm font-medium">Transaction Type <span
                                     class="text-red-500">*</span></label>
-                            <select v-model="txType"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700">
-                                <option value="income">Income (E/I ➜ Asset)</option>
-                                <option value="expense">Expense (Asset ➜ E/I)</option>
-                                <option value="asset">Asset (Asset ➜ Asset)</option>
-                            </select>
+                            <VueSelect v-model="txType"
+                                class="w-full"
+                                :options="[
+                                  {label: 'Income (E/I ➜ Asset)', value: 'income'},
+                                  {label: 'Expense (Asset ➜ E/I)', value: 'expense'},
+                                  {label: 'Asset (Asset ➜ Asset)', value: 'asset'},
+                                ]"
+                            />
                             <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
                                 Fees are subtracted from actual amounts. Overdrafts are permitted.
                             </p>
@@ -276,11 +279,9 @@ async function copyResult() {
                             <div>
                                 <label class="mb-1 block text-sm font-medium">Category <span
                                         class="text-red-500">*</span></label>
-                                <select v-model="form.category_id" class="w-full rounded-lg border px-3 py-2">
-                                    <option :value="null">— Select —</option>
-                                    <option v-for="c in props.categories" :key="c.id" :value="c.id">{{ c.name }}
-                                    </option>
-                                </select>
+                                <VueSelect v-model="form.category_id" class="w-full"
+                                    :options="props.categories.map(c => ({label: c.name, value: c.id}))"
+                                />
                             </div>
                         </div>
 
@@ -294,11 +295,9 @@ async function copyResult() {
                                 <div>
                                     <label class="mb-1 block text-sm font-medium">Source Account <span
                                             class="text-red-500">*</span></label>
-                                    <select v-model="form.from_account_id" class="w-full rounded-lg border px-3 py-2">
-                                        <option :value="null">— Select Account —</option>
-                                        <option v-for="a in sourceOptions" :key="a.id" :value="a.id">{{ a.name }}
-                                        </option>
-                                    </select>
+                                    <VueSelect v-model="form.from_account_id" class="w-full"
+                                        :options="sourceOptions.map(a => ({label: a.name, value: a.id}))"
+                                    />
                                     <div class="mt-2 text-xs">
                                         <span class="rounded-md border border-gray-300 px-1.5 py-0.5 text-gray-600">
                                             Available: <strong>{{ sourceBalance ?? '—' }}</strong>
@@ -378,11 +377,9 @@ async function copyResult() {
                                 <div>
                                     <label class="mb-1 block text-sm font-medium">Destination Account <span
                                             class="text-red-500">*</span></label>
-                                    <select v-model="form.to_account_id" class="w-full rounded-lg border px-3 py-2">
-                                        <option :value="null">— Select Account —</option>
-                                        <option v-for="a in destOptions" :key="a.id" :value="a.id">{{ a.name }}</option>
-                                    </select>
-
+                                    <VueSelect v-model="form.to_account_id" class="w-full"
+                                        :options="destOptions.map(a => ({label: a.name, value: a.id}))"
+                                    />
                                     <div class="mt-2 text-xs">
                                         <span class="rounded-md border border-gray-300 px-1.5 py-0.5 text-gray-600">
                                             Current: <strong>{{ destBalance ?? '—' }}</strong>

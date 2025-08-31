@@ -2,6 +2,8 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { watch } from 'vue';
+import VueSelect from "vue3-select-component";
+
 
 type AccountType = 'bank' | 'card' | 'mobile';
 
@@ -50,7 +52,7 @@ const form = useForm({
     is_active: true,
     type: 'bank' as AccountType,
 
-    card_type: 'other' as string | null,
+    card_type: 'visa' as string | null,
     account_number: null as string | null,
     bank_name: null as string | null,
     bank_routing_number: null as string | null,
@@ -156,19 +158,20 @@ function submit() {
 
                         <div>
                             <label class="mb-1 block text-sm font-medium">Type <span class="text-red-500">*</span></label>
-                            <select v-model="form.type" class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700">
-                                <option value="bank">Bank</option>
-                                <option value="mobile">Mobile Wallet</option>
-                                <option value="card">Card</option>
-                            </select>
+                            <VueSelect v-model="form.type" :options="[
+                                {label: 'Bank', value: 'bank'},
+                                {label: 'Mobile', value: 'mobile'},
+                                {label: 'Card', value: 'card'},
+                                ]" class="w-full" />
                             <p v-if="form.errors.type" class="mt-1 text-xs text-red-600">{{ form.errors.type }}</p>
                         </div>
 
                         <div>
                             <label class="mb-1 block text-sm font-medium">Currency <span class="text-red-500">*</span></label>
-                            <select v-model="form.currency" class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700">
-                                <option v-for="c in CURRENCIES" :key="c" :value="c">{{ c }}</option>
-                            </select>
+
+                            <VueSelect v-model="form.currency" class="w-full"
+                                :options="CURRENCIES.map(e => ({label: e, value: e}))"
+                            />
                             <p v-if="form.errors.currency" class="mt-1 text-xs text-red-600">{{ form.errors.currency }}</p>
                         </div>
 
@@ -281,12 +284,11 @@ function submit() {
                     <div class="grid gap-4 md:grid-cols-2">
                         <div>
                             <label class="mb-1 block text-sm font-medium">Card Brand</label>
-                            <select
+                            <VueSelect
                                 v-model="form.card_type"
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 capitalize dark:border-gray-700"
-                            >
-                                <option v-for="t in CARD_TYPES" :key="t" :value="t" class="capitalize">{{ t.replace('_', ' ') }}</option>
-                            </select>
+                                :options="CARD_TYPES.map(t => ({label: t.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()), value: t}))"
+                            />
                             <p v-if="form.errors.card_type" class="mt-1 text-xs text-red-600">{{ form.errors.card_type }}</p>
                         </div>
 

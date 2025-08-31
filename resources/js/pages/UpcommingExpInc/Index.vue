@@ -2,6 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, reactive } from 'vue'
+import VueSelect from "vue3-select-component";
 
 type UpItem = {
   id: number | string
@@ -78,7 +79,7 @@ const f = reactive({
   date_to: props.filters?.date_to ?? '',
 })
 
-function cleanQuery(obj: Record<string, unknown>) {
+function cleanQuery(obj: Record<string, any>) {
   return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== '' && v !== null && v !== undefined))
 }
 
@@ -160,20 +161,21 @@ function linkedName(eia_id?: number | string | null) {
           <!-- Type -->
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Type</label>
-            <select v-model="f.type" class="w-full rounded-lg border px-3 py-2 dark:border-gray-700">
-              <option value="">— Any —</option>
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
-            </select>
+            <VueSelect v-model="f.type" class="w-full"
+                :options="[
+                  {label: '— Any —', value: ''},
+                  {label: 'Income', value: 'income'},
+                  {label: 'Expense', value: 'expense'}
+                ]"
+            />
           </div>
 
           <!-- Linked Account -->
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Linked Account</label>
-            <select v-model="f.eia_id" class="w-full rounded-lg border px-3 py-2 dark:border-gray-700">
-              <option value="">— Any —</option>
-              <option v-for="a in props.accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-            </select>
+            <VueSelect v-model="f.eia_id" class="w-full"
+                :options="[{label: '— Any —', value: ''}, ...props.accounts.map(a => ({label: a.name, value: a.id}))]"
+            />
           </div>
 
           <!-- Date From -->

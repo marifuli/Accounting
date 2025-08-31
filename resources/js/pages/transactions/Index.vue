@@ -2,6 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, reactive } from 'vue';
+import VueSelect from "vue3-select-component";
 
 type Rel = { id: number | string; name: string };
 type TransactionRow = {
@@ -72,7 +73,7 @@ const f = reactive({
   receive_actual_amount_max: props.filters?.receive_actual_amount_max ?? '',
 });
 
-function cleanQuery(obj: Record<string, unknown>) {
+function cleanQuery(obj: Record<string, any>) {
   // Remove empty values so the URL stays tidy
   return Object.fromEntries(
     Object.entries(obj).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
@@ -177,28 +178,25 @@ const startIndex = computed(() => {
           <!-- From Account -->
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">From Account</label>
-            <select v-model="f.from_account_id" class="w-full rounded-lg border px-3 py-2 dark:border-gray-700">
-              <option value="">— Any —</option>
-              <option v-for="a in props.accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-            </select>
+            <VueSelect v-model="f.from_account_id" class="w-full"
+                :options="props.accounts.map(a => ({label: a.name, value: a.id}))"
+            />
           </div>
 
           <!-- To Account -->
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">To Account</label>
-            <select v-model="f.to_account_id" class="w-full rounded-lg border px-3 py-2 dark:border-gray-700">
-              <option value="">— Any —</option>
-              <option v-for="a in props.accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
-            </select>
+            <VueSelect v-model="f.to_account_id" class="w-full"
+                :options="props.accounts.map(a => ({label: a.name, value: a.id}))"
+            />
           </div>
 
           <!-- Category -->
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Category</label>
-            <select v-model="f.category_id" class="w-full rounded-lg border px-3 py-2 dark:border-gray-700">
-              <option value="">— Any —</option>
-              <option v-for="c in props.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
+            <VueSelect v-model="f.category_id" class="w-full"
+                :options="props.categories.map(c => ({label: c.name, value: c.id}))"
+            />
           </div>
 
           <!-- Send Total Amount (min/max) -->
