@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\ExpenseIncomeAccountController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\TransactionCategoryController;
@@ -23,6 +24,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('transactions', TransactionController::class);
     Route::delete('transactions/{transaction}/attachment/{index}', [TransactionController::class, 'destroyAttachment'])->name('transaction.attachments.destroy');
+
+    // Backup route
+    Route::get('/backup/download', [BackupController::class, 'download'])->name('backup.download');
 });
 
 require __DIR__ . '/settings.php';

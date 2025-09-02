@@ -5,7 +5,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Building2, ChartBarStacked, Folder, LayoutGrid, Banknote, Move3d, AlarmClockPlus } from 'lucide-vue-next';
+import { BookOpen, Building2, ChartBarStacked, Folder, LayoutGrid, Banknote, Move3d, AlarmClockPlus, Download } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -48,6 +48,10 @@ const footerNavItems: NavItem[] = [
     //     icon: Folder,
     // },
 ];
+
+const handleBackupDownload = () => {
+    window.location.href = route('backup.download');
+};
 </script>
 
 <template>
@@ -69,6 +73,20 @@ const footerNavItems: NavItem[] = [
         </SidebarContent>
 
         <SidebarFooter>
+            <!-- Backup Button -->
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton
+                        @click="handleBackupDownload"
+                        tooltip="Download Backup"
+                        class="hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                    >
+                        <Download class="h-4 w-4" />
+                        <span>Download Backup</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+
             <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>
