@@ -2,20 +2,15 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ExpenseIncomeAccountController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\TransactionCategoryController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UpcommingExpenseIncomeController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::redirect('/', '/dashboard')->name('home');
-
-Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/', [HomeController::class, 'dashboard'])->name('dashboard');
     Route::resource('accounts', AccountController::class);
     Route::resource('transaction-categories', TransactionCategoryController::class);
     Route::resource('expense-income-accounts', ExpenseIncomeAccountController::class);
