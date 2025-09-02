@@ -12,6 +12,7 @@ interface Stats {
     upcomingIncome: number;
     upcomingExpenses: number;
     netIncome: number;
+    primaryCurrency: string;
 }
 
 interface Transaction {
@@ -40,8 +41,10 @@ interface MonthlyData {
 interface AccountBalance {
     name: string;
     balance: number;
+    original_balance: number;
     type: string;
     currency: string;
+    primary_currency: string;
 }
 
 interface UpcomingItem {
@@ -68,12 +71,16 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+const formatCurrency = (amount: number, currency: string = 'BDT') => {
+    return new Intl.NumberFormat('en-BD', {
         style: 'currency',
-        currency: 'USD',
+        currency: currency,
         minimumFractionDigits: 2
     }).format(amount);
+};
+
+const formatBDTCurrency = (amount: number) => {
+    return formatCurrency(amount, 'BDT');
 };
 
 const getTransactionTypeColor = (type: string) => {
@@ -111,8 +118,8 @@ const getAccountTypeIcon = (type: string) => {
                 <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border p-6 bg-white dark:bg-gray-900">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Balance</p>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatCurrency(stats.totalBalance) }}</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Balance ({{ stats.primaryCurrency }})</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ formatBDTCurrency(stats.totalBalance) }}</p>
                         </div>
                         <div class="text-2xl">💰</div>
                     </div>
@@ -122,7 +129,7 @@ const getAccountTypeIcon = (type: string) => {
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Income</p>
-                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ formatCurrency(stats.totalIncome) }}</p>
+                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ formatBDTCurrency(stats.totalIncome) }}</p>
                         </div>
                         <div class="text-2xl">📈</div>
                     </div>
@@ -132,7 +139,7 @@ const getAccountTypeIcon = (type: string) => {
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Expenses</p>
-                            <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ formatCurrency(stats.totalExpenses) }}</p>
+                            <p class="text-2xl font-bold text-red-600 dark:text-red-400">{{ formatBDTCurrency(stats.totalExpenses) }}</p>
                         </div>
                         <div class="text-2xl">📉</div>
                     </div>
@@ -143,7 +150,7 @@ const getAccountTypeIcon = (type: string) => {
                         <div>
                             <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Net Income</p>
                             <p class="text-2xl font-bold" :class="stats.netIncome >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                                {{ formatCurrency(stats.netIncome) }}
+                                {{ formatBDTCurrency(stats.netIncome) }}
                             </p>
                         </div>
                         <div class="text-2xl">{{ stats.netIncome >= 0 ? '💹' : '📊' }}</div>
@@ -183,7 +190,7 @@ const getAccountTypeIcon = (type: string) => {
                             </div>
                             <div class="text-right">
                                 <div class="font-semibold" :class="transaction.type === 'inc' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                                    {{ transaction.type === 'inc' ? '+' : '-' }}{{ formatCurrency(transaction.amount) }}
+                                    {{ transaction.type === 'inc' ? '+' : '-' }}{{ formatBDTCurrency(transaction.amount) }}
                                 </div>
                             </div>
                         </div>
@@ -212,8 +219,10 @@ const getAccountTypeIcon = (type: string) => {
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="font-semibold text-gray-900 dark:text-white">{{ formatCurrency(account.balance) }}</div>
-                                <div class="text-xs text-gray-500 dark:text-gray-500">{{ account.currency }}</div>
+                                <div class="font-semibold text-gray-900 dark:text-white">{{ formatBDTCurrency(account.balance) }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-500">
+                                    {{ formatCurrency(account.original_balance, account.currency) }} → {{ account.primary_currency }}
+                                </div>
                             </div>
                         </div>
                         <div v-if="accountBalances.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -249,7 +258,7 @@ const getAccountTypeIcon = (type: string) => {
                             </div>
                             <div class="text-right">
                                 <div class="font-semibold" :class="item.type === 'inc' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                                    {{ formatCurrency(item.amount) }}
+                                    {{ formatBDTCurrency(item.amount) }}
                                 </div>
                             </div>
                         </div>
@@ -270,7 +279,7 @@ const getAccountTypeIcon = (type: string) => {
                                 <div class="text-sm text-gray-600 dark:text-gray-400">{{ category.count }} transactions</div>
                             </div>
                             <div class="text-right">
-                                <div class="font-semibold text-gray-900 dark:text-white">{{ formatCurrency(category.amount) }}</div>
+                                <div class="font-semibold text-gray-900 dark:text-white">{{ formatBDTCurrency(category.amount) }}</div>
                             </div>
                         </div>
                         <div v-if="transactionsByCategory.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -290,16 +299,16 @@ const getAccountTypeIcon = (type: string) => {
                         <div class="space-y-1">
                             <div class="flex justify-between">
                                 <span class="text-sm text-green-600 dark:text-green-400">Income:</span>
-                                <span class="text-sm font-medium text-green-600 dark:text-green-400">{{ formatCurrency(month.income) }}</span>
+                                <span class="text-sm font-medium text-green-600 dark:text-green-400">{{ formatBDTCurrency(month.income) }}</span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-sm text-red-600 dark:text-red-400">Expenses:</span>
-                                <span class="text-sm font-medium text-red-600 dark:text-red-400">{{ formatCurrency(month.expenses) }}</span>
+                                <span class="text-sm font-medium text-red-600 dark:text-red-400">{{ formatBDTCurrency(month.expenses) }}</span>
                             </div>
                             <div class="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-1">
                                 <span class="text-sm font-medium text-gray-900 dark:text-white">Net:</span>
                                 <span class="text-sm font-bold" :class="(month.income - month.expenses) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                                    {{ formatCurrency(month.income - month.expenses) }}
+                                    {{ formatBDTCurrency(month.income - month.expenses) }}
                                 </span>
                             </div>
                         </div>

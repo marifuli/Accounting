@@ -7,16 +7,34 @@ use App\Models\ExpenseIncomeAccount;
 use App\Models\Transaction;
 use App\Models\TransactionCategory;
 use App\Models\UpcommingExpenseIncome;
+use App\Services\CurrencyExchangeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
+    protected $currencyService;
+
+    public function __construct(CurrencyExchangeService $currencyService)
+    {
+        $this->currencyService = $currencyService;
+    }
+
     function dashboard() {
         // Get all accounts with their balances
         $accounts = Account::where('is_active', true)->get();
-        $totalBalance = $accounts->sum('current_balance');
+
+        // Convert all account balances to BDT
+        $totalBalance = 0;
+        foreach ($accounts as $account) {
+            $balanceInBDT = $this->currencyService->convertToPrimaryCurrency(
+                $account->current_balance,
+                $account->currency
+            );
+            $totalBalance += $balanceInBDT;
+        }
+
         $accountsCount = $accounts->count();
 
         // Get transaction statistics
@@ -85,13 +103,20 @@ class HomeController extends Controller
             ];
         }
 
-        // Get account balances for overview
+        // Get account balances for overview (converted to BDT)
         $accountBalances = $accounts->map(function ($account) {
+            $balanceInBDT = $this->currencyService->convertToPrimaryCurrency(
+                $account->current_balance,
+                $account->currency
+            );
+
             return [
                 'name' => $account->name ?: $account->account_name,
-                'balance' => floatval($account->current_balance),
+                'balance' => floatval($balanceInBDT),
+                'original_balance' => floatval($account->current_balance),
                 'type' => $account->type,
-                'currency' => $account->currency
+                'currency' => $account->currency,
+                'primary_currency' => $this->currencyService->getPrimaryCurrency()
             ];
         });
 
@@ -122,7 +147,8 @@ class HomeController extends Controller
                 'accountsCount' => $accountsCount,
                 'upcomingIncome' => floatval($upcomingIncome),
                 'upcomingExpenses' => floatval($upcomingExpenses),
-                'netIncome' => floatval($totalIncome - $totalExpenses)
+                'netIncome' => floatval($totalIncome - $totalExpenses),
+                'primaryCurrency' => $this->currencyService->getPrimaryCurrency()
             ],
             'recentTransactions' => $recentTransactions,
             'transactionsByCategory' => $transactionsByCategory,

@@ -10,6 +10,7 @@ use App\Http\Controllers\UpcommingExpenseIncomeController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+Route::redirect('/dashboard', '/');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/', [HomeController::class, 'dashboard'])->name('dashboard');
     Route::resource('accounts', AccountController::class);
