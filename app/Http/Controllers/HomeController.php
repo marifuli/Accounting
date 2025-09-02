@@ -103,6 +103,29 @@ class HomeController extends Controller
             ];
         }
 
+        // Get daily income vs expenses for the last 30 days
+        $dailyData = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $dayStart = $date->copy()->startOfDay();
+            $dayEnd = $date->copy()->endOfDay();
+
+            $income = Transaction::where('type', 'inc')
+                ->whereBetween('created_at', [$dayStart, $dayEnd])
+                ->sum('receive_actual_amount');
+
+            $expenses = Transaction::where('type', 'exp')
+                ->whereBetween('created_at', [$dayStart, $dayEnd])
+                ->sum('send_actual_amount');
+
+            $dailyData[] = [
+                'date' => $date->format('Y-m-d'),
+                'day' => $date->format('M d'),
+                'income' => floatval($income),
+                'expenses' => floatval($expenses)
+            ];
+        }
+
         // Get account balances for overview (converted to BDT)
         $accountBalances = $accounts->map(function ($account) {
             $balanceInBDT = $this->currencyService->convertToPrimaryCurrency(
@@ -153,6 +176,7 @@ class HomeController extends Controller
             'recentTransactions' => $recentTransactions,
             'transactionsByCategory' => $transactionsByCategory,
             'monthlyData' => $monthlyData,
+            'dailyData' => $dailyData,
             'accountBalances' => $accountBalances,
             'upcomingItems' => $upcomingItems
         ]);

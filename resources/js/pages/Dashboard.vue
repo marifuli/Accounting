@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import DailyChart from '@/components/dashboard/DailyChart.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
@@ -38,6 +39,13 @@ interface MonthlyData {
     expenses: number;
 }
 
+interface DailyData {
+    date: string;
+    day: string;
+    income: number;
+    expenses: number;
+}
+
 interface AccountBalance {
     name: string;
     balance: number;
@@ -60,6 +68,7 @@ const props = defineProps<{
     recentTransactions: Transaction[];
     transactionsByCategory: TransactionByCategory[];
     monthlyData: MonthlyData[];
+    dailyData: DailyData[];
     accountBalances: AccountBalance[];
     upcomingItems: UpcomingItem[];
 }>();
@@ -157,6 +166,12 @@ const getAccountTypeIcon = (type: string) => {
                     </div>
                 </div>
             </div>
+
+            <!-- Daily Chart -->
+            <DailyChart
+                :daily-data="dailyData"
+                :currency="stats.primaryCurrency"
+            />
 
             <!-- Main Content Grid -->
             <div class="grid gap-6 lg:grid-cols-3">
