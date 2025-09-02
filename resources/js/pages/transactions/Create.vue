@@ -151,7 +151,7 @@ const totalExceedsSource = computed(() => {
 function onFilesChanged(e: Event) {
     const input = e.target as HTMLInputElement;
     if (!input.files) return;
-    form.attachments = Array.from(input.files);
+    Array.from(input.files).forEach((f) => form.attachments.push(f));
 }
 function removeFile(i: number) {
     form.attachments.splice(i, 1);

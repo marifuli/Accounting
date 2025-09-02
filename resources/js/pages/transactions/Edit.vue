@@ -143,7 +143,7 @@ const existingAttachments = ref<string[]>(props.transaction.attachments ?? []);
 function onFilesChanged(e: Event) {
     const input = e.target as HTMLInputElement;
     if (!input.files) return;
-    form.attachments = Array.from(input.files);
+    Array.from(input.files).forEach((f) => form.attachments.push(f));
 }
 function fileUrl(path: string) {
     return `/storage/${path.replace(/^\/?storage\//, '')}`;
