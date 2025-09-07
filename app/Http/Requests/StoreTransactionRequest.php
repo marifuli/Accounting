@@ -52,6 +52,7 @@ class StoreTransactionRequest extends FormRequest
         return [
             'type'                  => ['required', 'string', 'in:income,expense,asset'],
             'name'                  => ['required', 'string', 'max:255'],
+            'date'                  => ['nullable', 'string', 'max:255'],
             'category_id'           => ['required', 'integer', 'exists:transaction_categories,id'],
             'from_account_id'       => ['required', 'integer', $fromRule],
             'send_actual_amount'    => ['required', 'numeric', 'min:0'],

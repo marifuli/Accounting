@@ -36,6 +36,8 @@ const props = defineProps<{
         receive_total_amount: number | string;
         receive_actual_amount: number | string;
 
+        date?: string | null;
+
         created_at?: string | null;
         updated_at?: string | null;
     };
@@ -66,6 +68,7 @@ const form = useForm({
     receive_total_amount: Number(props.transaction.receive_total_amount) || 0,
 
     description: props.transaction.description ?? '',
+    date: props.transaction.description || '',
     // New uploads only; existing attachments are shown separately
     attachments: [] as File[],
 });
@@ -162,6 +165,7 @@ function submit() {
 
         fd.append('name', data.name ?? '');
         fd.append('category_id', data.category_id ? String(data.category_id) : '');
+        fd.append('date', data.date ? String(data.date) : '');
 
         fd.append('from_account_id', data.from_account_id ? String(data.from_account_id) : '');
         fd.append('send_actual_amount', String(n(data.send_actual_amount)));
@@ -281,6 +285,13 @@ async function copyResult() {
                                         class="text-red-500">*</span></label>
                                 <VueSelect v-model="form.category_id" class="w-full"
                                     :options="props.categories.map(c => ({label: c.name, value: c.id}))"
+                                />
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium">Date <span class="text-red-500">*</span></label>
+                                <input
+                                    v-model="form.date" type="date"
+                                    class="w-full border-gray-300 dark:border-gray-700 rounded-lg border px-3 py-2"
                                 />
                             </div>
                         </div>
@@ -463,7 +474,7 @@ async function copyResult() {
                                 <li v-for="(p, i) in existingAttachments" :key="`${p}-${i}`"
                                     class="flex items-center justify-between px-3 py-2">
                                     <span class="truncate">{{ filename(p) }}</span>
-                                    <a :href="fileUrl(p)" target="_blank" rel="noopener"
+                                    <a :href="fileUrl(p)" target="_blank" rel="noopener" download
                                         class="rounded-md border px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800">View</a>
                                 </li>
                             </ul>

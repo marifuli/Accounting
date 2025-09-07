@@ -217,7 +217,7 @@ function submit() {
                         <li v-for="(p, i) in existing" :key="`${p}-${i}`" class="flex items-center justify-between px-3 py-2">
                             <span class="truncate">{{ filename(p) }}</span>
                             <a
-                                :href="fileUrl(p)"
+                                :href="fileUrl(p)" download
                                 target="_blank"
                                 rel="noopener"
                                 class="rounded-md border px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"

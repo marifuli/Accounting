@@ -333,7 +333,7 @@ function deleteAttachment(i: number) {
                             <span class="truncate">{{ filename(p) }}</span>
                             <div class="flex items-center gap-2">
                                 <a
-                                    :href="fileUrl(p)"
+                                    :href="fileUrl(p)" download
                                     target="_blank"
                                     rel="noopener"
                                     class="rounded-md border px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"

@@ -3,7 +3,11 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-
+import { formatDate } from '@/lib/utils';
+function fmtDate(iso?: string | null) {
+    if (!iso) return '—';
+    return formatDate((iso));
+}
 type UpItem = {
     id: number | string;
     title: string;
@@ -110,7 +114,7 @@ function destroyAttachment(index: number) {
                             v-if="item.date"
                             class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium dark:bg-gray-800"
                         >
-                            {{ item.date }}
+                            {{ fmtDate(item.date) }}
                         </span>
                         <span
                             v-if="item.eia?.name"
@@ -160,7 +164,7 @@ function destroyAttachment(index: number) {
                     <dd class="col-span-2">{{ typeLabel }}</dd>
 
                     <dt class="text-gray-500 dark:text-gray-400">Date</dt>
-                    <dd class="col-span-2">{{ item.date ?? '—' }}</dd>
+                    <dd class="col-span-2">{{ fmtDate(item.date) }}</dd>
 
                     <dt class="text-gray-500 dark:text-gray-400">Linked Account</dt>
                     <dd class="col-span-2">{{ item.eia?.name ?? '—' }}</dd>
@@ -191,7 +195,7 @@ function destroyAttachment(index: number) {
                         <div class="flex gap-2">
                             <a
                                 :href="fileUrl(p)"
-                                target="_blank"
+                                target="_blank" download
                                 rel="noopener"
                                 class="rounded-md border px-2 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"
                             >

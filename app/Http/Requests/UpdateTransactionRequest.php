@@ -59,6 +59,7 @@ class UpdateTransactionRequest extends FormRequest
             'dest_fees'             => ['nullable', 'array'],
             'dest_fees.*.name'      => ['nullable', 'string', 'max:255', 'required_with:dest_fees.*.amount'],
             'dest_fees.*.amount'    => ['nullable', 'numeric', 'min:0', 'required_with:dest_fees.*.name'],
+            'date'    => ['nullable', 'max:200'],
         ];
     }
 }

@@ -25,6 +25,7 @@ class Transaction extends Model
         'send_actual_amount',
         'receive_total_amount',
         'receive_actual_amount',
+        'date',
     ];
     protected $appends = ['from_account', 'to_account'];
     /**

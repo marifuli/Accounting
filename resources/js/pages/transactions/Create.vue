@@ -48,6 +48,8 @@ const form = useForm({
 
     description: '' as string | null,
     attachments: [] as File[],
+
+    date: '' as string | null, // "YYYY-MM-DD"
 });
 
 /** Reset accounts & keep form.type in sync on change */
@@ -181,6 +183,7 @@ function submit() {
 
         fd.append('name', data.name ?? '');
         fd.append('category_id', data.category_id ? String(data.category_id) : '');
+        fd.append('date', data.date ? String(data.date) : '');
 
         fd.append('from_account_id', data.from_account_id ? String(data.from_account_id) : '');
         fd.append('send_actual_amount', String(n(data.send_actual_amount)));
@@ -371,6 +374,14 @@ async function copyResult() {
                                     :options="props.categories.map(c => ({label: c.name, value: c.id}))"
                                 />
                                 <p v-if="form.errors.category_id" class="mt-1 text-xs text-red-600">{{ form.errors.category_id }}</p>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-sm font-medium">Date <span class="text-red-500">*</span></label>
+                                <input
+                                    v-model="form.date" type="date"
+                                    class="w-full border-gray-300 dark:border-gray-700 rounded-lg border px-3 py-2"
+                                />
+                                <p v-if="form.errors.date" class="mt-1 text-xs text-red-600">{{ form.errors.date }}</p>
                             </div>
                         </div>
 

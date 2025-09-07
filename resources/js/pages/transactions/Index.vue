@@ -3,6 +3,11 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, reactive } from 'vue';
 import VueSelect from "vue3-select-component";
+import { formatDate } from '@/lib/utils';
+function fmtDate(iso?: string | null) {
+  if (!iso) return '—';
+  return formatDate((iso));
+}
 
 type Rel = { id: number | string; name: string };
 type TransactionRow = {
@@ -18,6 +23,7 @@ type TransactionRow = {
   receive_total_amount?: number | string | null;
   receive_actual_amount?: number | string | null;
   created_at?: string | null;
+  date?: string | null;
 };
 
 type PaginationLink = { url: string | null; label: string; active: boolean };
@@ -49,6 +55,9 @@ const props = defineProps<{
     receive_total_amount_max?: string | number | null;
     receive_actual_amount_min?: string | number | null;
     receive_actual_amount_max?: string | number | null;
+
+    from_date?: string | null;
+    to_date?: string | null;
   };
   accounts: Option[];
   categories: Option[];
@@ -71,6 +80,9 @@ const f = reactive({
   receive_total_amount_max: props.filters?.receive_total_amount_max ?? '',
   receive_actual_amount_min: props.filters?.receive_actual_amount_min ?? '',
   receive_actual_amount_max: props.filters?.receive_actual_amount_max ?? '',
+
+    from_date: props.filters?.from_date ?? '',
+    to_date: props.filters?.to_date ?? '',
 });
 
 function cleanQuery(obj: Record<string, any>) {
@@ -294,6 +306,25 @@ const startIndex = computed(() => {
               />
             </div>
           </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">From Date</label>
+              <input
+                v-model="f.from_date"
+                type="date"
+                class="w-full rounded-lg border px-3 py-2 dark:border-gray-700"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">To Date</label>
+              <input
+                v-model="f.to_date"
+                type="date"
+                inputmode="decimal"
+                class="w-full rounded-lg border px-3 py-2 dark:border-gray-700"
+              />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -322,13 +353,12 @@ const startIndex = computed(() => {
               <thead class="bg-gray-50 text-gray-700 dark:bg-gray-900/60 dark:text-gray-200">
                 <tr>
                   <th class="px-4 py-3 w-12">#</th> <!-- NEW serial column -->
+                  <th class="px-4 py-3">Date</th>
                   <th class="px-4 py-3">Name</th>
                   <th class="px-4 py-3">Category</th>
                   <th class="px-4 py-3">From</th>
-                  <th class="px-4 py-3">To</th>
-                  <th class="px-4 py-3">Send (Total/Actual)</th>
+                  <th class="px-4 py-3">Send (Actual/Total)</th>
                   <th class="px-4 py-3">Receive (Total/Actual)</th>
-                  <th class="px-4 py-3">Attachments</th>
                   <th class="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -347,8 +377,14 @@ const startIndex = computed(() => {
                 >
                   <td class="px-4 py-3 text-gray-500">{{ startIndex + i + 1 }}</td>
 
+                  <td class="px-4 py-3 font-medium" >
+                    <div style="width: 160px;">
+
+                        {{ fmtDate(row.date || row.created_at) }}
+                    </div>
+                    </td>
                   <td class="px-4 py-3 font-medium">
-                    <div class="flex flex-col">
+                    <div class="" style="max-width: 240px;">
                       <span class="truncate">{{ row.name }}</span>
                       <span v-if="row.description" class="mt-0.5 line-clamp-1 text-xs text-gray-500 dark:text-gray-400">
                         {{ row.description }}
@@ -357,29 +393,26 @@ const startIndex = computed(() => {
                   </td>
 
                   <td class="px-4 py-3">
-                    {{ row.category?.name ?? '—' }}
+                    <div style="width: 130px;">
+
+                        {{ row.category?.name ?? '—' }}
+                    </div>
                   </td>
 
                   <td class="px-4 py-3">
+                    <div style="width: 250px;">
                     {{ row.from_account?.name ?? '—' }}
-                  </td>
-
-                  <td class="px-4 py-3">
+                    ->
                     {{ row.to_account?.name ?? '—' }}
+                    </div>
                   </td>
 
                   <td class="px-4 py-3 whitespace-nowrap">
-                    {{ fmtMoney(row.send_total_amount) }} / {{ fmtMoney(row.send_actual_amount) }}
+                    <b>{{ fmtMoney(row.send_actual_amount) }}</b> / {{ fmtMoney(row.send_total_amount) }}
                   </td>
 
                   <td class="px-4 py-3 whitespace-nowrap">
-                    {{ fmtMoney(row.receive_total_amount) }} / {{ fmtMoney(row.receive_actual_amount) }}
-                  </td>
-
-                  <td class="px-4 py-3">
-                    <span class="text-xs text-gray-600 dark:text-gray-300">
-                      {{ Array.isArray(row.attachments) ? row.attachments.length : 0 }}
-                    </span>
+                    {{ fmtMoney(row.receive_total_amount) }} / <b>{{ fmtMoney(row.receive_actual_amount) }}</b>
                   </td>
 
                   <td class="px-4 py-3">

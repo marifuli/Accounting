@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\TransactionFee;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\UploadedFile;
-
+use Illuminate\Support\Facades\Log;
 
 class TransactionController extends Controller
 {
@@ -44,6 +44,10 @@ class TransactionController extends Controller
         }
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->input('category_id'));
+        }
+        if ($request->filled('from_date') && $request->filled('to_date')) {
+            $query->where('date', '>=', $request->input('from_date'))
+                  ->where('date', '<=', $request->input('to_date'));
         }
 
         // 🔧 NEW: name contains search
@@ -176,7 +180,7 @@ class TransactionController extends Controller
 
         // 6) Numeric helpers
         $toDec = static fn($v) => round((float) $v, 2);
-        $sendTotal    = $toDec($data['send_total_amount']    ?? 0);
+        $sendActual    = $toDec($data['send_actual_amount']    ?? 0);
         $receiveTotal = $toDec($data['receive_total_amount'] ?? 0);
 
         // 7) Map short type -> models for balance updates
@@ -196,7 +200,7 @@ class TransactionController extends Controller
         };
 
         // 8) Create Transaction, Fees, and update balances atomically
-        DB::transaction(function () use (&$data, $sourceFees, $destFees, $toDec, $sendTotal, $receiveTotal, $classesFor, $lock) {
+        DB::transaction(function () use (&$data, $sourceFees, $destFees, $toDec, $sendActual, $receiveTotal, $classesFor, $lock) {
             /** @var \App\Models\Transaction $tx */
             $tx = \App\Models\Transaction::create($data);
 
@@ -225,7 +229,7 @@ class TransactionController extends Controller
             $source  = $lock($classes['from'], $data['from_account_id']);
             $dest    = $lock($classes['to'],   $data['to_account_id']);
 
-            $source->current_balance = $toDec($source->current_balance) - $sendTotal;
+            $source->current_balance = $toDec($source->current_balance) - $sendActual;
             $dest->current_balance   = $toDec($dest->current_balance)   + $receiveTotal;
 
             $source->save();
@@ -607,7 +611,7 @@ class TransactionController extends Controller
                 Storage::disk('public')->delete($attachmentPaths);
             } catch (\Throwable $e) {
                 // Optional: log but don't fail the request
-                \Log::warning('Failed to delete transaction attachments', [
+                Log::warning('Failed to delete transaction attachments', [
                     'transaction_id' => $transaction->id ?? null,
                     'paths'          => $attachmentPaths,
                     'error'          => $e->getMessage(),
