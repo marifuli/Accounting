@@ -48,30 +48,37 @@ class BackupController extends Controller
                 $username = $databaseConfig['username'];
                 $password = $databaseConfig['password'];
 
-                // Create MySQL dump
+                // For MySQL and others without mysqldump
                 $sqlFile = "{$tempDir}/database.sql";
-                $mysqldumpCommand = [
-                    'mysqldump',
-                    '--host=' . $host,
-                    '--port=' . $port,
-                    '--user=' . $username,
-                    '--password=' . $password,
-                    '--single-transaction',
-                    '--routines',
-                    '--triggers',
-                    $database
-                ];
+                $dbname  = $databaseConfig['database'];
 
-                $process = new Process($mysqldumpCommand);
-                $process->setTimeout(300); // 5 minutes timeout
-                $process->run();
+                // open file
+                $handle = fopen($sqlFile, 'w');
 
-                if (!$process->isSuccessful()) {
-                    throw new ProcessFailedException($process);
+                // get all tables
+                $tables = DB::select('SHOW TABLES');
+                $key    = "Tables_in_{$dbname}";
+
+                foreach ($tables as $table) {
+                    $tableName = $table->$key;
+
+                    // Write DROP + CREATE
+                    $create = DB::select("SHOW CREATE TABLE `$tableName`")[0]->{'Create Table'};
+                    fwrite($handle, "\n\nDROP TABLE IF EXISTS `$tableName`;\n$create;\n\n");
+
+                    // Write INSERTs
+                    $rows = DB::table($tableName)->get();
+                    foreach ($rows as $row) {
+                        $values = array_map(function ($v) {
+                            return is_null($v) ? 'NULL' : DB::getPdo()->quote($v);
+                        }, (array) $row);
+
+                        $sql = "INSERT INTO `$tableName` (`" . implode('`,`', array_keys((array) $row)) . "`) VALUES (" . implode(',', $values) . ");\n";
+                        fwrite($handle, $sql);
+                    }
                 }
 
-                // Save the SQL dump to file
-                file_put_contents($sqlFile, $process->getOutput());
+                fclose($handle);
             }
 
             // Copy storage folder if it exists
