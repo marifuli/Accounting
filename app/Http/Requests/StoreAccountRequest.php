@@ -50,6 +50,9 @@ class StoreAccountRequest extends FormRequest
             'bank_iban'           => ['nullable','string','max:34','unique:accounts,bank_iban'],
             'bank_address'        => ['nullable','string','max:255'],
             'description'         => ['nullable','string'],
+            'app_password'         => ['nullable','string'],
+            'app_pin'         => ['nullable','string'],
+            'secret_note'         => ['nullable','string'],
         ];
     }
 

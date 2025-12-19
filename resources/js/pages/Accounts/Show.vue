@@ -34,12 +34,17 @@ type Account = {
   description?: string | null
   created_at?: string | null
   updated_at?: string | null
+  app_password?: string | null
+  app_pin?: string | null
+  secret_note?: string | null
 }
 
 const props = defineProps<{ account: Account }>()
 
 const showCvv = ref(false)
 const showPin = ref(false)
+const showAppPin = ref(false)
+const showAppPass = ref(false)
 
 const breadcrumbs = [
   { title: 'Accounts', href: route('accounts.index') },
@@ -181,6 +186,9 @@ const typeLabel = computed(() => (props.account.type ? String(props.account.type
 
             <dt class="text-gray-500 dark:text-gray-400">Updated</dt>
             <dd class="col-span-2">{{ fmtDate(props.account.updated_at) }}</dd>
+
+            <dt class="text-gray-500 dark:text-gray-400"></dt>
+            <dd class="col-span-2">{{ fmtDate(props.account.updated_at) }}</dd>
           </dl>
         </section>
 
@@ -202,6 +210,63 @@ const typeLabel = computed(() => (props.account.type ? String(props.account.type
 
             <dt class="text-gray-500 dark:text-gray-400">Bank Address</dt>
             <dd class="col-span-2">{{ props.account.bank_address ?? '—' }}</dd>
+
+            <dt class="text-gray-500 dark:text-gray-400" v-if="account.app_pin">App PIN</dt>
+            <dd class="col-span-2 flex items-center gap-2 font-mono" v-if="account.app_pin">
+              <span>{{ showAppPin ? props.account.app_pin : '•'.repeat(account.app_pin?.length)  }}</span>
+              <button
+                type="button"
+                class="rounded-md border px-1.5 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"
+                :title="showAppPin ? 'Hide PIN' : 'Show PIN'"
+                @click="showAppPin = !showAppPin"
+              >
+                <svg
+                  v-if="!showAppPin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M2.036 12.322a1 1 0 0 1 0-.644C3.423 7.51 7.36 5 12 5s8.577 2.51 9.964 6.678a1 1 0 0 1 0 .644C20.577 16.49 16.64 19 12 19s-8.577-2.51-9.964-6.678z" />
+                  <circle cx="12" cy="12" r="3" stroke-width="1.5" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3l18 18" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M2.25 12C3.75 7.5 7.5 5 12 5c2.2 0 4.17.62 5.83 1.67M20.25 12c-.6 1.8-1.63 3.32-3.03 4.45A10.6 10.6 0 0 1 12 19c-4.5 0-8.25-2.5-9.75-7" />
+                </svg>
+              </button>
+            </dd>
+            <dt class="text-gray-500 dark:text-gray-400" v-if="account.app_password">App Password</dt>
+            <dd class="col-span-2 flex items-center gap-2 font-mono" v-if="account.app_password">
+              <span>{{ showAppPass ? props.account.app_password : '•'.repeat(account.app_password?.length)  }}</span>
+              <button
+                type="button"
+                class="rounded-md border px-1.5 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"
+                :title="showAppPass ? 'Hide PIN' : 'Show PIN'"
+                @click="showAppPass = !showAppPass"
+              >
+                <svg
+                  v-if="!showAppPass"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M2.036 12.322a1 1 0 0 1 0-.644C3.423 7.51 7.36 5 12 5s8.577 2.51 9.964 6.678a1 1 0 0 1 0 .644C20.577 16.49 16.64 19 12 19s-8.577-2.51-9.964-6.678z" />
+                  <circle cx="12" cy="12" r="3" stroke-width="1.5" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3l18 18" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M2.25 12C3.75 7.5 7.5 5 12 5c2.2 0 4.17.62 5.83 1.67M20.25 12c-.6 1.8-1.63 3.32-3.03 4.45A10.6 10.6 0 0 1 12 19c-4.5 0-8.25-2.5-9.75-7" />
+                </svg>
+              </button>
+            </dd>
           </dl>
         </section>
 
@@ -219,9 +284,9 @@ const typeLabel = computed(() => (props.account.type ? String(props.account.type
             <dd class="col-span-2">{{ fmtDate(props.account.card_expiry) }}</dd>
 
             <!-- CVV with eye toggle -->
-            <dt class="text-gray-500 dark:text-gray-400">CVV</dt>
-            <dd class="col-span-2 flex items-center gap-2 font-mono">
-              <span>{{ showCvv ? (props.account.card_cvv ?? '—') : props.account.card_cvv ? '•••' : '—' }}</span>
+            <dt class="text-gray-500 dark:text-gray-400" v-if="account.card_cvv">CVV</dt>
+            <dd class="col-span-2 flex items-center gap-2 font-mono" v-if="account.card_cvv">
+              <span>{{ showCvv ? props.account.card_cvv : '•'.repeat(account.card_cvv?.length) }}</span>
               <button
                 type="button"
                 class="rounded-md border px-1.5 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -249,9 +314,9 @@ const typeLabel = computed(() => (props.account.type ? String(props.account.type
             </dd>
 
             <!-- PIN with eye toggle -->
-            <dt class="text-gray-500 dark:text-gray-400">PIN</dt>
-            <dd class="col-span-2 flex items-center gap-2 font-mono">
-              <span>{{ showPin ? (props.account.card_pin ?? '—') : props.account.card_pin ? '••••' : '—' }}</span>
+            <dt class="text-gray-500 dark:text-gray-400" v-if="account.card_pin">PIN</dt>
+            <dd class="col-span-2 flex items-center gap-2 font-mono" v-if="account.card_pin">
+              <span>{{ showPin ? props.account.card_pin : '•'.repeat(account.card_pin?.length) }}</span>
               <button
                 type="button"
                 class="rounded-md border px-1.5 py-1 text-xs hover:bg-gray-50 dark:hover:bg-gray-800"

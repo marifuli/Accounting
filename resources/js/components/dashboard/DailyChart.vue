@@ -1,216 +1,219 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref } from 'vue'
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-} from 'chart.js';
-import { Line } from 'vue-chartjs';
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+} from 'chart.js'
+import { Line } from 'vue-chartjs'
 
 ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+)
 
 interface DailyData {
-  date: string;
-  day: string;
-  income: number;
-  expenses: number;
+    date: string // Y-m-d
+    day: string
+    income: number
+    expenses: number
 }
 
 interface Props {
-  dailyData: DailyData[];
-  currency?: string;
+    dailyData: DailyData[]
+    currency?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  currency: 'BDT'
-});
+    currency: 'BDT'
+})
 
-const period = ref<'30' | '60'>('30');
+/**
+ * period selection
+ */
+const period = ref<'this' | 'last'>('this')
 
-const filteredData = computed(() => {
-  const days = period.value === '30' ? 30 : 60;
-  return props.dailyData.slice(-days);
-});
+/**
+ * helpers
+ */
+const today = new Date()
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-BD', {
-    style: 'currency',
-    currency: props.currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value);
-};
+const getMonthRange = (type: 'this' | 'last') => {
+    const year = today.getFullYear()
+    const month = today.getMonth()
 
-const chartData = computed(() => ({
-  labels: filteredData.value.map(item => item.day),
-  datasets: [
-    {
-      label: 'Income',
-      data: filteredData.value.map(item => item.income),
-      borderColor: '#10b981',
-      backgroundColor: 'rgba(16, 185, 129, 0.1)',
-      fill: false,
-      tension: 0.4,
-      pointBackgroundColor: '#10b981',
-      pointBorderColor: '#10b981',
-      pointRadius: 3,
-      pointHoverRadius: 5,
-    },
-    {
-      label: 'Expenses',
-      data: filteredData.value.map(item => item.expenses),
-      borderColor: '#ef4444',
-      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-      fill: false,
-      tension: 0.4,
-      pointBackgroundColor: '#ef4444',
-      pointBorderColor: '#ef4444',
-      pointRadius: 3,
-      pointHoverRadius: 5,
+    if (type === 'this') {
+        return {
+            start: new Date(year, month, 1),
+            end: new Date(year, month + 1, 0, 23, 59, 59)
+        }
     }
-  ]
-}));
 
-const chartOptions = computed(() => ({
+    return {
+        start: new Date(year, month - 1, 1),
+        end: new Date(year, month, 0, 23, 59, 59)
+    }
+}
+
+/**
+ * filtered data by month
+ */
+const filteredData = computed(() => {
+    const { start, end } = getMonthRange(period.value)
+
+    return props.dailyData.filter(item => {
+        const d = new Date(item.date)
+        return d >= start && d <= end
+    })
+})
+
+/**
+ * month label for UI
+ */
+const monthTitle = computed(() => {
+    const date =
+        period.value === 'this'
+            ? today
+            : new Date(today.getFullYear(), today.getMonth() - 1, 1)
+
+    return date.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+})
+
+const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-BD', {
+        style: 'currency',
+        currency: props.currency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(value)
+
+/**
+ * chart data
+ */
+const chartData = computed(() => ({
+    labels: filteredData.value.map(item =>
+        new Date(item.date).getDate().toString()
+    ),
+    datasets: [
+        {
+            label: 'Income',
+            data: filteredData.value.map(i => i.income),
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4,
+            pointRadius: 3
+        },
+        {
+            label: 'Expenses',
+            data: filteredData.value.map(i => i.expenses),
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4,
+            pointRadius: 3
+        }
+    ]
+}))
+import type { ChartOptions } from 'chart.js'
+
+const chartOptions = computed<ChartOptions<'line'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  interaction: {
-    mode: 'index' as const,
-    intersect: false,
-  },
+
   plugins: {
     title: {
       display: true,
-      text: `Daily Income vs Expenses (Last ${period.value} days)`,
-      color: '#374151',
+      text: `Daily Income vs Expenses (${monthTitle.value})`,
       font: {
         size: 16,
         weight: 'bold' as const
       }
     },
-    legend: {
-      display: true,
-      position: 'top' as const,
-      labels: {
-        color: '#6b7280',
-        usePointStyle: true,
-        padding: 20
-      }
-    },
+
     tooltip: {
-      backgroundColor: 'rgba(17, 24, 39, 0.95)',
-      titleColor: '#f9fafb',
-      bodyColor: '#f9fafb',
-      borderColor: '#374151',
-      borderWidth: 1,
-      cornerRadius: 8,
-      displayColors: true,
       callbacks: {
-        label: function(context: any) {
-          const label = context.dataset.label || '';
-          const value = formatCurrency(context.parsed.y);
-          return `${label}: ${value}`;
-        }
+        label: (ctx) =>
+          `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
       }
     }
   },
+
   scales: {
     x: {
-      display: true,
       title: {
         display: true,
-        text: 'Date',
-        color: '#6b7280'
-      },
-      grid: {
-        color: 'rgba(107, 114, 128, 0.1)'
-      },
-      ticks: {
-        color: '#6b7280',
-        maxTicksLimit: period.value === '30' ? 15 : 10
+        text: 'Day of Month'
       }
     },
+
     y: {
-      display: true,
-      title: {
-        display: true,
-        text: `Amount (${props.currency})`,
-        color: '#6b7280'
-      },
-      grid: {
-        color: 'rgba(107, 114, 128, 0.1)'
-      },
+      beginAtZero: true,
       ticks: {
-        color: '#6b7280',
-        callback: function(value: any) {
-          return formatCurrency(value);
-        }
-      },
-      beginAtZero: true
-    }
-  },
-  elements: {
-    line: {
-      borderWidth: 2
-    },
-    point: {
-      hoverBorderWidth: 3
+        callback: (value) => formatCurrency(Number(value))
+      }
     }
   }
-}));
+}))
 
+
+/**
+ * summary stats
+ */
 const totalIncome = computed(() =>
-  filteredData.value.reduce((sum, item) => sum + item.income, 0)
-);
+    filteredData.value.reduce((s, i) => s + i.income, 0)
+)
 
 const totalExpenses = computed(() =>
-  filteredData.value.reduce((sum, item) => sum + item.expenses, 0)
-);
+    filteredData.value.reduce((s, i) => s + i.expenses, 0)
+)
 
-const netAmount = computed(() => totalIncome.value - totalExpenses.value);
+const netAmount = computed(() => totalIncome.value - totalExpenses.value)
 </script>
-
 <template>
-  <div class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border p-6 bg-white dark:bg-gray-900">
+  <div
+    class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border
+           p-6 bg-white dark:bg-gray-900"
+  >
+    <!-- Header -->
     <div class="flex items-center justify-between mb-6">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Daily Trends</h3>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        {{ monthTitle }}
+      </h3>
+
       <div class="flex gap-2">
         <button
-          @click="period = '30'"
+          @click="period = 'this'"
           :class="[
             'px-3 py-1 text-sm rounded-md transition-colors',
-            period === '30'
+            period === 'this'
               ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
           ]"
         >
-          30 Days
+          This Month
         </button>
+
         <button
-          @click="period = '60'"
+          @click="period = 'last'"
           :class="[
             'px-3 py-1 text-sm rounded-md transition-colors',
-            period === '60'
+            period === 'last'
               ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
           ]"
         >
-          60 Days
+          Last Month
         </button>
       </div>
     </div>
@@ -218,24 +221,49 @@ const netAmount = computed(() => totalIncome.value - totalExpenses.value);
     <!-- Summary Stats -->
     <div class="grid grid-cols-3 gap-4 mb-6">
       <div class="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-        <div class="text-sm text-green-600 dark:text-green-400 font-medium">Total Income</div>
+        <div class="text-sm font-medium text-green-600 dark:text-green-400">
+          Total Income
+        </div>
         <div class="text-lg font-bold text-green-700 dark:text-green-300">
           {{ formatCurrency(totalIncome) }}
         </div>
       </div>
 
       <div class="text-center p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
-        <div class="text-sm text-red-600 dark:text-red-400 font-medium">Total Expenses</div>
+        <div class="text-sm font-medium text-red-600 dark:text-red-400">
+          Total Expenses
+        </div>
         <div class="text-lg font-bold text-red-700 dark:text-red-300">
           {{ formatCurrency(totalExpenses) }}
         </div>
       </div>
 
-      <div class="text-center p-3 rounded-lg" :class="netAmount >= 0 ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-orange-50 dark:bg-orange-900/20'">
-        <div class="text-sm font-medium" :class="netAmount >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'">
+      <div
+        class="text-center p-3 rounded-lg"
+        :class="
+          netAmount >= 0
+            ? 'bg-blue-50 dark:bg-blue-900/20'
+            : 'bg-orange-50 dark:bg-orange-900/20'
+        "
+      >
+        <div
+          class="text-sm font-medium"
+          :class="
+            netAmount >= 0
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-orange-600 dark:text-orange-400'
+          "
+        >
           Net Amount
         </div>
-        <div class="text-lg font-bold" :class="netAmount >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'">
+        <div
+          class="text-lg font-bold"
+          :class="
+            netAmount >= 0
+              ? 'text-blue-700 dark:text-blue-300'
+              : 'text-orange-700 dark:text-orange-300'
+          "
+        >
           {{ formatCurrency(netAmount) }}
         </div>
       </div>
@@ -243,6 +271,7 @@ const netAmount = computed(() => totalIncome.value - totalExpenses.value);
 
     <!-- Chart -->
     <div class="h-80">
+      <!-- IMPORTANT: Line must be PascalCase -->
       <Line
         :data="chartData"
         :options="chartOptions"
@@ -251,3 +280,4 @@ const netAmount = computed(() => totalIncome.value - totalExpenses.value);
     </div>
   </div>
 </template>
+

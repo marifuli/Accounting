@@ -105,7 +105,7 @@ class HomeController extends Controller
 
         // Get daily income vs expenses for the last 30 days
         $dailyData = [];
-        for ($i = 29; $i >= 0; $i--) {
+        for ($i = 62; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
             $dayStart = $date->copy()->startOfDay();
             $dayEnd = $date->copy()->endOfDay();

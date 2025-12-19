@@ -13,7 +13,6 @@ type ExpenseIncomeAccount = {
   currency: string | null
   description?: string | null
   type: 'income' | 'expense'
-  transaction_category_id?: number | string | null
 }
 
 type Option = { id: number | string; name: string }
@@ -55,7 +54,6 @@ const form = useForm({
 
   description: (props.expense_income_account.description ?? '') as string | null,
   type: (props.expense_income_account.type ?? 'expense') as 'income' | 'expense',
-  transaction_category_id: (props.expense_income_account.transaction_category_id ?? null) as number | string | null,
 })
 
 function submit() {
@@ -167,22 +165,6 @@ function submit() {
                 ]"
               />
               <p v-if="form.errors.type" class="mt-1 text-xs text-red-600">{{ form.errors.type }}</p>
-            </div>
-
-            <!-- Parent Category -->
-            <div>
-              <label class="mb-1 block text-sm font-medium">Category</label>
-              <VueSelect
-                v-model="form.transaction_category_id"
-                class="w-full"
-                :options="[
-                  {label: '— None —', value: null},
-                  ...props.transactionCategories.map(c => ({label: c.name, value: c.id}))
-                ]"
-              />
-              <p v-if="form.errors.transaction_category_id" class="mt-1 text-xs text-red-600">
-                {{ form.errors.transaction_category_id }}
-              </p>
             </div>
           </div>
         </section>

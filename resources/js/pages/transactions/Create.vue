@@ -60,11 +60,21 @@ watch(txType, () => {
 });
 
 /** ---------- Helpers ---------- */
-const n = (v: unknown) => {
-    const x = typeof v === 'string' ? v.replace(/,/g, '') : v;
-    const num = Number(x);
-    return isFinite(num) ? num : 0;
-};
+const n = (v: string | number | null | undefined): number => {
+    let result = 0;
+    if (v === null || v === undefined) result = 0
+
+    if (typeof v === 'number') {
+        result = Number.isFinite(v) ? v : 0
+    }
+
+    if (typeof v === 'string') {
+        const cleaned = v.trim().replace(/,/g, '')
+        const num = Number(cleaned)
+        result = Number.isFinite(num) ? num : 0
+    }
+    return Math.round(result * 100) / 100
+}
 const isDepleted = (acc?: AccountWithBal | null) => !acc || n(acc.current_balance) <= 0;
 
 /** ---------- Options by type (NEW rules) ---------- */
@@ -416,8 +426,8 @@ async function copyResult() {
                                     </label>
                                     <input
                                         v-model="form.send_actual_amount"
-                                        type="number"
-                                        step="0.01"
+                                        type="text"
+                                        
                                         inputmode="decimal"
                                         class="w-full rounded-lg border px-3 py-2"
                                         :class="form.errors.send_actual_amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
@@ -466,8 +476,8 @@ async function copyResult() {
                                             <label class="mb-1 block text-xs font-medium">Amount</label>
                                             <input
                                                 v-model="f.amount"
-                                                type="number"
-                                                step="0.01"
+                                                type="text"
+
                                                 inputmode="decimal"
                                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700"
                                             />
@@ -545,8 +555,8 @@ async function copyResult() {
                                     </label>
                                     <input
                                         v-model="form.receive_actual_amount"
-                                        type="number"
-                                        step="0.01"
+                                        type="text"
+
                                         inputmode="decimal"
                                         class="w-full rounded-lg border px-3 py-2"
                                         :class="form.errors.receive_actual_amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'"
@@ -585,8 +595,8 @@ async function copyResult() {
                                             <label class="mb-1 block text-xs font-medium">Amount</label>
                                             <input
                                                 v-model="f.amount"
-                                                type="number"
-                                                step="0.01"
+                                                type="text"
+
                                                 inputmode="decimal"
                                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700"
                                             />

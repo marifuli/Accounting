@@ -32,7 +32,10 @@ class Account extends Model
         'card_pin',
         'bank_iban',
         'bank_address',
-        'description',    
+        'description',
+        'app_password',
+        'app_pin',
+        'secret_note',
     ];
 
       protected $casts = [

@@ -355,6 +355,7 @@ class TransactionController extends Controller
         return Inertia::render('transactions/Edit', [
             'transaction'      => [
                 'id'                    => $transaction->id,
+                'date'                  => $transaction->date,
                 'type'                  => $uiType, // UI uses long strings
                 'name'                  => (string)$transaction->name,
                 'category_id'           => $transaction->category_id,

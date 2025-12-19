@@ -65,6 +65,10 @@ const form = useForm({
     bank_iban: null as string | null,
     bank_address: null as string | null,
     description: null as string | null,
+
+    app_password: null as string | null,
+    app_pin: null as string | null,
+    secret_note: null as string | null,
 });
 
 // Autofill current_balance if empty/zero
@@ -134,7 +138,7 @@ function submit() {
                         </div>
 
                         <div>
-                            <label class="mb-1 block text-sm font-medium">Name <span class="text-red-500">*</span></label>
+                            <label class="mb-1 block text-sm font-medium">Nick Name <span class="text-red-500">*</span></label>
                             <input
                                 v-model="form.name"
                                 type="text"
@@ -276,6 +280,29 @@ function submit() {
                             <p v-if="form.errors.bank_address" class="mt-1 text-xs text-red-600">{{ form.errors.bank_address }}</p>
                         </div>
                     </div>
+
+          <div class="grid gap-4 md:grid-cols-2 mt-3">
+            <div>
+              <label class="mb-1 block text-sm font-medium">App Password</label>
+              <input
+                v-model="form.app_password"
+                type="password"
+                autocomplete="off"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700"
+              />
+              <p v-if="form.errors.app_password" class="mt-1 text-xs text-red-600">{{ form.errors.app_password }}</p>
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium">App PIN</label>
+              <input
+                v-model="form.app_pin"
+                type="password"
+                autocomplete="off"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700"
+              />
+              <p v-if="form.errors.app_pin" class="mt-1 text-xs text-red-600">{{ form.errors.app_pin }}</p>
+            </div>
+          </div>
                 </section>
 
                 <!-- Card (ALWAYS visible; values kept for any type) -->

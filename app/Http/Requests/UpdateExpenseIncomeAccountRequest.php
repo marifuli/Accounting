@@ -29,7 +29,6 @@ class UpdateExpenseIncomeAccountRequest extends FormRequest
             'currency'                  => ['required', Rule::in($currencies)],
             'description'               => ['nullable', 'string'],
             'type'                      => ['required', Rule::in(['income', 'expense'])],
-            'transaction_category_id'   => ['nullable', 'integer', 'exists:transaction_categories,id'],
         ];
     }
 }

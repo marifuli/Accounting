@@ -18,6 +18,5 @@ class ExpenseIncomeAccount extends Model
         'currency',
         'current_balance',
         'type',
-        'transaction_category_id',
     ];
 }

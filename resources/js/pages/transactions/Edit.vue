@@ -68,7 +68,7 @@ const form = useForm({
     receive_total_amount: Number(props.transaction.receive_total_amount) || 0,
 
     description: props.transaction.description ?? '',
-    date: props.transaction.description || '',
+    date: props.transaction.date || '',
     // New uploads only; existing attachments are shown separately
     attachments: [] as File[],
 });
@@ -81,11 +81,22 @@ watch(txType, () => {
 });
 
 /** ---------- Helpers ---------- */
-const n = (v: unknown) => {
-    const x = typeof v === 'string' ? v.replace(/,/g, '') : v;
-    const num = Number(x);
-    return isFinite(num) ? num : 0;
-};
+const n = (v: string | number | null | undefined): number => {
+    let result = 0;
+    if (v === null || v === undefined) result = 0
+
+    if (typeof v === 'number') {
+        result = Number.isFinite(v) ? v : 0
+    }
+
+    if (typeof v === 'string') {
+        const cleaned = v.trim().replace(/,/g, '')
+        const num = Number(cleaned)
+        result = Number.isFinite(num) ? num : 0
+    }
+    return Math.round(result * 100) / 100
+}
+
 const isDepleted = (acc?: AccountWithBal | null) => !acc || n(acc.current_balance) <= 0;
 
 /** ---------- Options by type (SAME RULES AS CREATE) ---------- */
@@ -244,7 +255,7 @@ async function copyResult() {
                         <div class="flex gap-2">
                             <Link :href="route('transactions.index')" as="button"
                                 class="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800">
-                            Cancel
+                                Cancel
                             </Link>
                             <button type="button"
                                 class="rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:opacity-90 dark:bg-white dark:text-gray-900"
@@ -259,14 +270,11 @@ async function copyResult() {
                         <div>
                             <label class="mb-1 block text-sm font-medium">Transaction Type <span
                                     class="text-red-500">*</span></label>
-                            <VueSelect v-model="txType"
-                                class="w-full"
-                                :options="[
-                                  {label: 'Income (E/I ➜ Asset)', value: 'income'},
-                                  {label: 'Expense (Asset ➜ E/I)', value: 'expense'},
-                                  {label: 'Asset (Asset ➜ Asset)', value: 'asset'},
-                                ]"
-                            />
+                            <VueSelect v-model="txType" class="w-full" :options="[
+                                { label: 'Income (E/I ➜ Asset)', value: 'income' },
+                                { label: 'Expense (Asset ➜ E/I)', value: 'expense' },
+                                { label: 'Asset (Asset ➜ Asset)', value: 'asset' },
+                            ]" />
                             <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
                                 Fees are subtracted from actual amounts. Overdrafts are permitted.
                             </p>
@@ -284,15 +292,13 @@ async function copyResult() {
                                 <label class="mb-1 block text-sm font-medium">Category <span
                                         class="text-red-500">*</span></label>
                                 <VueSelect v-model="form.category_id" class="w-full"
-                                    :options="props.categories.map(c => ({label: c.name, value: c.id}))"
-                                />
+                                    :options="props.categories.map(c => ({ label: c.name, value: c.id }))" />
                             </div>
                             <div>
-                                <label class="mb-1 block text-sm font-medium">Date <span class="text-red-500">*</span></label>
-                                <input
-                                    v-model="form.date" type="date"
-                                    class="w-full border-gray-300 dark:border-gray-700 rounded-lg border px-3 py-2"
-                                />
+                                <label class="mb-1 block text-sm font-medium">Date <span
+                                        class="text-red-500">*</span></label>
+                                <input v-model="form.date" type="date"
+                                    class="w-full border-gray-300 dark:border-gray-700 rounded-lg border px-3 py-2" />
                             </div>
                         </div>
 
@@ -307,8 +313,7 @@ async function copyResult() {
                                     <label class="mb-1 block text-sm font-medium">Source Account <span
                                             class="text-red-500">*</span></label>
                                     <VueSelect v-model="form.from_account_id" class="w-full"
-                                        :options="sourceOptions.map(a => ({label: a.name, value: a.id}))"
-                                    />
+                                        :options="sourceOptions.map(a => ({ label: a.name, value: a.id }))" />
                                     <div class="mt-2 text-xs">
                                         <span class="rounded-md border border-gray-300 px-1.5 py-0.5 text-gray-600">
                                             Available: <strong>{{ sourceBalance ?? '—' }}</strong>
@@ -323,7 +328,7 @@ async function copyResult() {
                                         <span class="ml-1 rounded-md border border-gray-300 px-1 py-0.5 text-xs">{{
                                             sourceCurrency }}</span>
                                     </label>
-                                    <input v-model="form.send_actual_amount" type="number" step="0.01"
+                                    <input v-model="form.send_actual_amount" type="text" 
                                         inputmode="decimal" class="w-full rounded-lg border px-3 py-2" />
                                 </div>
                             </div>
@@ -349,7 +354,7 @@ async function copyResult() {
                                         </div>
                                         <div>
                                             <label class="mb-1 block text-xs font-medium">Amount</label>
-                                            <input v-model="f.amount" type="number" step="0.01" inputmode="decimal"
+                                            <input v-model="f.amount" type="text"  inputmode="decimal"
                                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700" />
                                         </div>
                                         <div class="flex justify-end">
@@ -370,8 +375,7 @@ async function copyResult() {
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-sm font-medium">Send Total (computed)</label>
-                                        <input :value="(n(form.send_actual_amount) - sourceFeesTotal).toFixed(2)"
-                                            type="text" readonly
+                                        <input :value="n(form.send_total_amount).toFixed(2)" type="text" readonly
                                             class="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900/40" />
                                     </div>
                                 </div>
@@ -389,8 +393,7 @@ async function copyResult() {
                                     <label class="mb-1 block text-sm font-medium">Destination Account <span
                                             class="text-red-500">*</span></label>
                                     <VueSelect v-model="form.to_account_id" class="w-full"
-                                        :options="destOptions.map(a => ({label: a.name, value: a.id}))"
-                                    />
+                                        :options="destOptions.map(a => ({ label: a.name, value: a.id }))" />
                                     <div class="mt-2 text-xs">
                                         <span class="rounded-md border border-gray-300 px-1.5 py-0.5 text-gray-600">
                                             Current: <strong>{{ destBalance ?? '—' }}</strong>
@@ -398,14 +401,13 @@ async function copyResult() {
                                         </span>
                                     </div>
                                 </div>
-
                                 <div>
                                     <label class="mb-1 block text-sm font-medium">
                                         Receive Amount (Actual)
                                         <span class="ml-1 rounded-md border border-gray-300 px-1 py-0.5 text-xs">{{
                                             destCurrency }}</span>
                                     </label>
-                                    <input v-model="form.receive_actual_amount" type="number" step="0.01"
+                                    <input v-model="form.receive_actual_amount" type="text" 
                                         inputmode="decimal" class="w-full rounded-lg border px-3 py-2" />
                                 </div>
                             </div>
@@ -429,7 +431,7 @@ async function copyResult() {
                                         </div>
                                         <div>
                                             <label class="mb-1 block text-xs font-medium">Amount</label>
-                                            <input v-model="f.amount" type="number" step="0.01" inputmode="decimal"
+                                            <input v-model="f.amount" type="text"  inputmode="decimal"
                                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700" />
                                         </div>
                                         <div class="flex justify-end">
@@ -450,8 +452,7 @@ async function copyResult() {
                                     </div>
                                     <div>
                                         <label class="mb-1 block text-sm font-medium">Receive Total (computed)</label>
-                                        <input :value="(n(form.receive_actual_amount) - destFeesTotal).toFixed(2)"
-                                            type="text" readonly
+                                        <input :value="n(form.receive_total_amount).toFixed(2)" type="text" readonly
                                             class="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900/40" />
                                     </div>
                                 </div>

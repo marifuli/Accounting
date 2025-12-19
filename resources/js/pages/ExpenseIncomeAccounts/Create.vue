@@ -21,7 +21,6 @@ const form = useForm({
   currency: 'BDT' as (typeof CURRENCIES)[number],
   description: '' as string | null,
   type: 'expense' as 'income' | 'expense',
-  transaction_category_id: null as number | string | null,
 })
 
 function submit() {
@@ -120,21 +119,6 @@ const CURRENCIES = [
                 ]"
               />
               <p v-if="form.errors.type" class="mt-1 text-xs text-red-600">{{ form.errors.type }}</p>
-            </div>
-
-            <div>
-              <label class="mb-1 block text-sm font-medium">Parent Category</label>
-              <VueSelect
-                v-model="form.transaction_category_id"
-                class="w-full"
-                :options="[
-                  {label: '— None —', value: null},
-                  ...props.transactionCategories.map(c => ({label: c.name, value: c.id}))
-                ]"
-              />
-              <p v-if="form.errors.transaction_category_id" class="mt-1 text-xs text-red-600">
-                {{ form.errors.transaction_category_id }}
-              </p>
             </div>
           </div>
         </section>
